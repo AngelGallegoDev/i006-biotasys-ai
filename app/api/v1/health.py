@@ -1,11 +1,12 @@
 """Health check API endpoints."""
 
-from fastapi import APIRouter
 from datetime import datetime
 
-from app.models.schemas import HealthResponse
+from fastapi import APIRouter
+
 from app.config.settings import settings
 from app.core.logging import get_logger
+from app.models.schemas import HealthResponse
 
 logger = get_logger(__name__)
 
@@ -19,9 +20,9 @@ async def health_check():
 
     Returns the current health status of the service and its dependencies.
     """
-    from app.services.ai_service import ai_service
     from app.core.supabase import supabase
-    
+    from app.services.ai_service import ai_service
+
     db_status = {"connected": False}
     try:
         # Check Supabase connection (lightweight call)

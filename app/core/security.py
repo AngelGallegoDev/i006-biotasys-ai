@@ -1,7 +1,7 @@
 """Security utilities for the application."""
 
+
 from passlib.context import CryptContext
-from typing import Optional
 
 # Password hashing context (for future authentication features)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -5,9 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config.settings import settings
-from app.core.logging import setup_logging, get_logger
 from app.api.v1 import api_router
+from app.config.settings import settings
+from app.core.logging import get_logger, setup_logging
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 
@@ -71,7 +71,7 @@ async def read_item(item_id: int, q: str | None = None):
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "main:app",
         host=settings.api_host,

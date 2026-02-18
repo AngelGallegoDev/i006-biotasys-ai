@@ -1,6 +1,7 @@
 """Supabase client configuration."""
 
-from supabase import create_client, Client
+from supabase import Client, create_client
+
 from app.config.settings import settings
 from app.core.logging import get_logger
 

@@ -1,12 +1,13 @@
 """Chat-related API endpoints."""
 
-from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
-from app.services.ai_service import AIService
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.api.dependencies import get_ai_service
 from app.core.logging import get_logger
+from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
+from app.services.ai_service import AIService
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,7 @@ async def create_chat_completion(
 ):
     """
     Create a chat completion using OpenRouter API.
-    
+
     - **model**: AI model to use (e.g., "openai/gpt-3.5-turbo")
     - **messages**: List of chat messages
     - **max_tokens**: Maximum tokens to generate (1-4096)
@@ -40,7 +41,7 @@ async def create_chat_completion(
 async def list_models(ai_service: AIService = Depends(get_ai_service)):
     """
     List all available AI models from OpenRouter.
-    
+
     Returns a list of available models with their information.
     """
     try:

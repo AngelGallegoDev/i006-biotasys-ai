@@ -1,7 +1,9 @@
 """Base repository class."""
 
 from supabase import Client
+
 from app.core.supabase import supabase
+
 
 class BaseRepository:
     """Base class for all repositories."""

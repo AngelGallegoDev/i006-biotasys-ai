@@ -1,9 +1,10 @@
 """Chat repository for Supabase persistence."""
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime
-from app.repositories.base import BaseRepository
+from typing import Any, Dict, List
+
 from app.core.logging import get_logger
+from app.repositories.base import BaseRepository
 
 logger = get_logger(__name__)
 
