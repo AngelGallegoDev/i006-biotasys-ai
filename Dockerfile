@@ -1,6 +1,6 @@
 # Use Python 3.11 slim image for smaller size
 FROM ghcr.io/astral-sh/uv:latest AS uv_bin
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
