@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str
 
+    # Database Configuration (SQLAlchemy)
+    database_url: str
+
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000

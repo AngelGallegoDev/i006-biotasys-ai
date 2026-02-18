@@ -13,6 +13,9 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/health", tags=["health"])
 
 
+from app.core.supabase import supabase
+from app.services.ai_service import ai_service
+
 @router.get("", response_model=HealthResponse)
 async def health_check():
     """
@@ -20,9 +23,6 @@ async def health_check():
 
     Returns the current health status of the service and its dependencies.
     """
-    from app.core.supabase import supabase
-    from app.services.ai_service import ai_service
-
     db_status = {"connected": False}
     try:
         # Check Supabase connection (lightweight call)

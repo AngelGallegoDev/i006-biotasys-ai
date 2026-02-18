@@ -6,13 +6,14 @@
 
 Esta es una aplicación completa de API REST con integración de IA que incluye:
 
-- **Backend**: Python 3.8+ + FastAPI + OpenRouter AI
+- **Backend**: Python 3.13+ + FastAPI + Google Gemini 2.0
 - **Package Manager**: uv (ultra-rápido)
-- **AI Integration**: OpenRouter con múltiples modelos (GPT-4, Claude, etc.)
+- **AI Integration**: Google GenAI SDK (Moderno / Gemini 2.0)
+- **Database**: SQLAlchemy 2.0 (Async) + Supabase
 - **Configuration**: Environment-based con Pydantic Settings
 - **Documentation**: Auto-generada con Swagger UI y ReDoc
 - **Containerization**: Docker y Docker Compose listos
-- **Development Tools**: Testing, linting, type checking configurados
+- **Development Tools**: Testing, linting, type checking (Ruff, Mypy) configurados
 
 ## 🗂️ Estructura del Proyecto
 
@@ -55,9 +56,10 @@ template-python-fastapi/
 
 ### Core Framework
 
-- **Python 3.8+**: Lenguaje de programación principal
-- **FastAPI 0.104+**: Framework web moderno y asíncrono
-- **Pydantic 2.5+**: Validación de datos y settings
+- **Python 3.13+**: Versión de vanguardia con mejoras de rendimiento y JIT
+- **FastAPI 0.129+**: Framework web moderno y asíncrono
+- **Pydantic 2.12+**: Validación de datos y settings
+- **SQLAlchemy 2.0**: ORM potente en modo asíncrono
 - **Uvicorn**: Servidor ASGI de alto rendimiento
 - **Passlib**: Utilidades de seguridad y hashing
 
@@ -68,9 +70,9 @@ template-python-fastapi/
 
 ### AI Integration
 
-- **OpenRouter**: Gateway a múltiples modelos de IA
+- **Google GenAI SDK**: Integración nativa con Gemini 2.0
 - **httpx**: Cliente HTTP asíncrono para APIs
-- **Modelos soportados**: GPT-3.5, GPT-4, Claude, PaLM, y más
+- **Modelos soportados**: Gemini 2.0 Flash, Pro, Lite, etc.
 
 ### Development & Deployment
 
@@ -106,28 +108,36 @@ uv run fastapi dev main.py
 Edita el archivo `.env` con tu configuración:
 
 ```env
-# OpenRouter API Configuration
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+# Gemini API Configuration
+GEMINI_API_KEY=your_gemini_api_key_here
+MODEL_NAME=gemini-2.0-flash-lite
+
+# Database Configuration (Supabase)
+# IMPORTANTE: Usar postgresql+asyncpg:// para modo asíncrono
+DATABASE_URL=postgresql+asyncpg://postgres.[ID]:[PASS]@[HOST]:[PORT]/postgres
+
+# Supabase Configuration (Legacy/REST)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-service-role-key
 
 # FastAPI Configuration
-APP_NAME=FastAPI AI Template
-APP_VERSION=1.0.0
+APP_NAME=Biotasys AI
 DEBUG=true
-
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-
-# CORS Configuration
-CORS_ORIGINS=["*"]
-CORS_ALLOW_CREDENTIALS=true
-CORS_ALLOW_METHODS=["*"]
-CORS_ALLOW_HEADERS=["*"]
-
-# Logging Configuration
-LOG_LEVEL=INFO
 ```
+
+## 🗄️ Base de Datos y Driver Asíncrono
+
+Para mantener el principio de **Async-First** y evitar bloqueos en el bucle de eventos (Event Loop) de FastAPI, el proyecto utiliza SQLAlchemy en modo asíncrono.
+
+### ⚠️ Regla de Oro del Driver
+- **Prohibido**: `psycopg2`. Es un driver síncrono. Si se utiliza dentro de funciones `async def`, bloqueará todo el servidor por cada consulta, destruyendo el rendimiento de FastAPI.
+- **Obligatorio**: `asyncpg`. Es el driver de alto rendimiento diseñado específicamente para Python asíncrono.
+
+### Configuración de la URL de Conexión
+La variable `DATABASE_URL` debe usar siempre el protocolo `postgresql+asyncpg://`. 
+
+Ejemplo correcto:
+`DATABASE_URL=postgresql+asyncpg://user:password@host:port/dbname`
 
 ## 📚 Documentación de la API
 
