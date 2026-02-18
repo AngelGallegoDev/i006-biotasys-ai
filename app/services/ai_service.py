@@ -1,7 +1,8 @@
-"""AI service for OpenRouter integration."""
+"""AI service for Gemini integration."""
 
-import httpx
+import google.generativeai as genai
 import uuid
+import time
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -14,90 +15,82 @@ logger = get_logger(__name__)
 
 
 class AIService:
-    """Service for interacting with OpenRouter API."""
+    """Service for interacting with Google Gemini API."""
     
     def __init__(self):
-        """Initialize the AI service."""
-        self.client = httpx.AsyncClient(
-            base_url=settings.openrouter_base_url,
-            headers={
-                "Authorization": f"Bearer {settings.openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/your-username/template-python-fastapi",
-                "X-Title": settings.app_name,
-            },
-            timeout=60.0
-        )
-        logger.info(f"AI Service initialized with API key: {mask_api_key(settings.openrouter_api_key)}")
+        """Initialize the Gemini AI service."""
+        genai.configure(api_key=settings.gemini_api_key)
+        self.model_name = settings.model_name
+        logger.info(f"AI Service initialized with Gemini API key: {mask_api_key(settings.gemini_api_key)}")
     
     async def chat_completion(self, request: ChatRequest) -> ChatResponse:
-        """Create a chat completion using OpenRouter API."""
-        
-        # Convert ChatMessage objects to dict format
-        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-        
-        payload = {
-            "model": request.model,
-            "messages": messages,
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "stream": request.stream,
-        }
+        """Create a chat completion using Gemini API."""
         
         try:
-            logger.info(f"Sending chat completion request for model: {request.model}")
-            response = await self.client.post("/chat/completions", json=payload)
-            response.raise_for_status()
+            logger.info(f"Sending chat completion request for model: {self.model_name}")
             
-            data = response.json()
+            # Use requested model if provided, else use default from settings
+            model_id = request.model if request.model and "gemini" in request.model.lower() else self.model_name
+            model = genai.GenerativeModel(model_id)
+            
+            # Format history for Gemini
+            # Gemini expects 'user' and 'model' roles
+            history = []
+            for msg in request.messages[:-1]:
+                role = "user" if msg.role == "user" else "model"
+                history.append({"role": role, "parts": [msg.content]})
+            
+            chat = model.start_chat(history=history)
+            
+            last_message = request.messages[-1].content
+            
+            # Using run_in_executor might be safer for sync SDK calls, 
+            # but Gemini SDK often handles async internally or is lightweight enough.
+            # For strictness, we'll call it directly since it's the standard way in early implementations.
+            response = await chat.send_message_async(
+                last_message,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=request.max_tokens,
+                    temperature=request.temperature,
+                )
+            )
             
             chat_response = ChatResponse(
-                id=data.get("id", str(uuid.uuid4())),
-                created=data.get("created", int(datetime.now().timestamp())),
-                model=data.get("model", request.model),
-                choices=data.get("choices", []),
-                usage=data.get("usage")
+                id=str(uuid.uuid4()),
+                created=int(time.time()),
+                model=model_id,
+                choices=[{
+                    "message": {
+                        "role": "assistant",
+                        "content": response.text
+                    },
+                    "finish_reason": "stop"
+                }],
+                usage={"total_tokens": 0} # Gemini SDK usage details vary by version
             )
             
             logger.info(f"Chat completion successful: {chat_response.id}")
             return chat_response
             
-        except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
         except Exception as e:
-            error_msg = f"Error calling OpenRouter API: {str(e)}"
+            error_msg = f"Error calling Gemini API: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
     
     async def list_models(self) -> List[ModelInfo]:
-        """List available models from OpenRouter."""
+        """List available Gemini models."""
         try:
-            logger.info("Fetching available models from OpenRouter")
-            response = await self.client.get("/models")
-            response.raise_for_status()
-            
-            data = response.json()
-            models_data = data.get("data", [])
-            
-            models = [
-                ModelInfo(
-                    id=model.get("id", ""),
-                    name=model.get("name"),
-                    description=model.get("description"),
-                    pricing=model.get("pricing")
-                )
-                for model in models_data
-            ]
-            
-            logger.info(f"Retrieved {len(models)} models")
+            logger.info("Fetching available models from Gemini")
+            models = []
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    models.append(ModelInfo(
+                        id=m.name,
+                        name=m.display_name,
+                        description=m.description,
+                        pricing={"info": "Refer to Google Cloud pricing"}
+                    ))
             return models
-            
-        except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
         except Exception as e:
             error_msg = f"Error fetching models: {str(e)}"
             logger.error(error_msg)
@@ -106,17 +99,16 @@ class AIService:
     async def health_check(self) -> bool:
         """Check if the AI service is healthy."""
         try:
-            # Try to fetch models as a simple health check
-            await self.list_models()
+            # Simple model list check
+            genai.get_model(self.model_name)
             return True
         except Exception as e:
-            logger.error(f"AI service health check failed: {str(e)}")
+            logger.error(f"Gemini service health check failed: {str(e)}")
             return False
     
     async def close(self):
-        """Close the HTTP client."""
-        await self.client.aclose()
-        logger.info("AI service client closed")
+        """Close method for interface consistency."""
+        logger.info("Gemini service client 'closed'")
 
 
 # Global AI service instance

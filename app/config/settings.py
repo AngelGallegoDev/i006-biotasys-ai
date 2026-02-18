@@ -11,10 +11,9 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = True
     
-    # OpenRouter Configuration
-    openrouter_api_key: str
-    openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    model_name: str = "deepseek/deepseek-r1-0528:free"
+    # Gemini Configuration
+    gemini_api_key: str
+    model_name: str = "gemini-2.0-flash-lite-preview-02-05"
 
     # JWT Configuration
     jwt_secret_key: str
