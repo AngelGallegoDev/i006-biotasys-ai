@@ -44,6 +44,8 @@ class HealthResponse(BaseModel):
     timestamp: datetime = Field(..., description="Response timestamp")
     version: str = Field(..., description="Application version")
     message: Optional[str] = Field(default=None, description="Additional status message")
+    database: Optional[Dict[str, Any]] = Field(default=None, description="Database status")
+    ai_service: Optional[Dict[str, Any]] = Field(default=None, description="AI service status")
 
 
 class ErrorResponse(BaseModel):

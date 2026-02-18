@@ -55,7 +55,7 @@ app.include_router(api_router)
 async def read_root():
     """Root endpoint with basic information."""
     return RootResponse(
-        message=f"Welcome to {settings.app_name}",
+        message=f"Biotasys AI - Running on {settings.app_name}",
         version=settings.app_version,
         docs="/docs",
         health="/api/v1/health"
