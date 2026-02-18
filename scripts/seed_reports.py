@@ -7,9 +7,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from tests.factories import MicrobiotaReportFactory
-from app.repositories.report_repository import ReportRepository
 from app.core.logging import get_logger
+from app.repositories.report_repository import ReportRepository
+from tests.factories import MicrobiotaReportFactory
 
 logger = get_logger(__name__)
 
@@ -21,7 +21,7 @@ async def seed_reports(count: int = 5):
     for i in range(count):
         # Generate mock report
         mock_report = MicrobiotaReportFactory.build()
-        
+
         try:
             # Save to repository
             result = await repo.save_report(mock_report)

@@ -7,8 +7,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.supabase import supabase
 from app.core.logging import get_logger
+from app.core.supabase import supabase
 
 logger = get_logger(__name__)
 
@@ -18,7 +18,7 @@ async def create_tables():
     Note: This depends on the Supabase Key permissions.
     """
     logger.info("🚀 Attempting to create table 'microbiota_reports' via SQL gateway...")
-    
+
     sql = """
     CREATE TABLE IF NOT EXISTS public.microbiota_reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -38,17 +38,17 @@ async def create_tables():
         END IF;
     END $$;
     """
-    
+
     try:
-        # We try to use the undocumented but often available _raw_sql or similar if possible, 
+        # We try to use the undocumented but often available _raw_sql or similar if possible,
         # but since 'supabase-py' is limited, we'll try to use a function or execute if available.
         # Most Supabase clients don't allow raw SQL for SECURITY reasons.
         # If this fails, we will know for sure we need the manual step or DATABASE_URL.
-        
+
         # Alternative: try a dummy insert to see if it triggers an error that tells us something
         logger.warning("Supabase client generally restricts DDL (CREATE TABLE) via API for safety.")
         logger.info("Checking if table exists by doing a silent select...")
-        
+
         try:
             supabase.table("microbiota_reports").select("id").limit(1).execute()
             logger.info("✅ Table already exists!")

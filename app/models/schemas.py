@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class HealthResponse(BaseModel):
@@ -41,6 +41,13 @@ class SequencingData(BaseModel):
     total_reads: int = Field(..., description="Total obtained reads")
     filtered_reads: int = Field(..., description="Filtered reads after quality check")
 
+    @field_validator("total_reads", "filtered_reads")
+    @classmethod
+    def validate_positive_reads(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Reads cannot be negative")
+        return v
+
 
 class DiversityIndices(BaseModel):
     """Ecological diversity and richness metrics."""
@@ -48,11 +55,25 @@ class DiversityIndices(BaseModel):
     simpson_index: float = Field(..., description="Simpson alpha diversity index")
     observed_otus: int = Field(..., description="Observed richness (OTUs)")
 
+    @field_validator("shannon_index", "simpson_index", "observed_otus")
+    @classmethod
+    def validate_positive_indices(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("Diversity indices must be positive")
+        return v
+
 
 class TaxonomicAbundance(BaseModel):
     """Relative abundance of a taxonomic unit."""
     name: str = Field(..., description="Name of the taxon")
     abundance: float = Field(..., description="Relative abundance percentage")
+
+    @field_validator("abundance")
+    @classmethod
+    def validate_abundance_range(cls, v: float) -> float:
+        if not (0 <= v <= 100):
+            raise ValueError(f"Abundance must be between 0 and 100, got {v}")
+        return v
 
 
 class TaxonomicComposition(BaseModel):
@@ -61,6 +82,13 @@ class TaxonomicComposition(BaseModel):
     firmicutes_bacteroidetes_ratio: float = Field(..., description="F/B ratio")
     predominant_genera: list[TaxonomicAbundance] = Field(..., description="Predominant genera")
     detected_species: list[TaxonomicAbundance] = Field(..., description="Detected species")
+
+    @field_validator("firmicutes_bacteroidetes_ratio")
+    @classmethod
+    def validate_fb_ratio(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("Firmicutes/Bacteroidetes ratio cannot be negative")
+        return v
 
 
 class FunctionalMarkers(BaseModel):
@@ -128,6 +156,14 @@ class MicrobiotaReport(BaseModel):
     interpretation: MicrobiotaInterpretation | None = Field(default=None, description="Detailed analysis from Gemini 3 Pro")
     engine_version: str = Field(default="1.1.0", description="Version of the analysis engine")
     processed_at: datetime = Field(default_factory=datetime.now)
+
+    @model_validator(mode="after")
+    def validate_clinical_integrity(self) -> "MicrobiotaReport":
+        # Ensure that if we have taxonomy, the sum is reasonable (allowing for 'Others')
+        total_phyla = sum(p.abundance for p in self.taxonomy.phyla)
+        if total_phyla > 100.5: # Small margin for rounding
+            raise ValueError(f"Sum of phyla abundances exceeds 100%: {total_phyla}")
+        return self
 
 
 class AnalysisRequest(BaseModel):

@@ -1,3 +1,4 @@
+from fastapi import APIRouter
 from app.api.v1 import clinical, health
 
 api_router = APIRouter(prefix="/api/v1")

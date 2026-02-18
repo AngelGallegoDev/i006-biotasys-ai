@@ -1,14 +1,17 @@
 """AI service for Gemini integration using the modern google-genai SDK."""
 
-import time
-import uuid
-
 from google import genai
 from google.genai import types
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from app.config.settings import settings
 from app.core.logging import get_logger
-from app.core.security import mask_api_key
+from app.core.exceptions import AIError
 from app.models.schemas import (
     MicrobiotaReport,
     MicrobiotaInterpretation,
@@ -34,12 +37,18 @@ class AIService:
             f"AI Service initialized. Models: Extractor={self.extractor_model}, Interpreter={self.interpreter_model}"
         )
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception),  # Better: capture specific SDK errors if possible
+        reraise=True
+    )
     async def analyze_microbiota_document(self, file_bytes: bytes, mime_type: str) -> MicrobiotaReport:
         """
         Extract structured data from report (PDF/Image) using the high-speed extractor.
         """
         try:
-            logger.info(f"Extracting data using {self.extractor_model}")
+            logger.info(f"Extracting technical data using {self.extractor_model}")
             
             system_instruction = (
                 "Eres un experto Bioinformático. Tu tarea es la EXTRACCIÓN de datos técnicos. "
@@ -70,8 +79,14 @@ class AIService:
 
         except Exception as e:
             logger.error(f"Extraction error: {str(e)}")
-            raise e
+            raise AIError("Gemini Extraction Engine failed", details=str(e))
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception),
+        reraise=True
+    )
     async def interpret_microbiota_data(self, data: MicrobiotaReport) -> MicrobiotaInterpretation:
         """
         Generate advanced clinical reasoning using the powerful Gemini 3 Pro interpreter.
@@ -88,7 +103,6 @@ class AIService:
                 "Usa un tono profesional, jerárquico y estructurado."
             )
 
-            # Pass the extracted JSON to the interpreter
             prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"
 
             response = await self.client.aio.models.generate_content(
@@ -98,77 +112,26 @@ class AIService:
                     system_instruction=system_instruction,
                     response_mime_type="application/json",
                     response_schema=MicrobiotaInterpretation,
-                    temperature=0.7,  # Slight creative temperature for synthesis
-                    # Thinking Level can be added here if supported by the SDK
+                    temperature=0.7,
                 ),
             )
             return response.parsed
 
         except Exception as e:
             logger.error(f"Interpretation error: {str(e)}")
-            raise e
-
-    async def analyze_microbiota_report(self, raw_text: str) -> MicrobiotaReport:
-        """
-        Analyze a raw microbiota document (PDF or Image) and extract structured data.
-        Uses Gemini's multimodal capability.
-        """
-        try:
-            logger.info(f"Starting multimodal extraction from document: {mime_type}")
-            
-            system_instruction = (
-                "Eres un experto Bioinformático y Analista de Microbiota en Biotasys. "
-                "Se te proporcionará un informe de laboratorio (PDF o Imagen). "
-                "Tu tarea es extraer con precisión absoluta los datos técnicos. "
-                "Busca métricas de diversidad, abundancias taxonómicas y marcadores funcionales. "
-                "Ignora gráficos decorativos y enfócate en las tablas y valores numéricos. "
-                "Si un valor no está presente, usa 0 para números y 'No disponible' para texto."
-            )
-
-            # Gemini 2.0 supports PDF and Images directly in the parts list
-            contents = [
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
-                        types.Part.from_text(text="Extrae toda la información estructurada de este informe de microbiota.")
-                    ]
-                )
-            ]
-
-            response = await self.client.aio.models.generate_content(
-                model=self.model_name,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=MicrobiotaReport,
-                    temperature=0.1,
-                ),
-            )
-
-            structured_data = response.parsed
-            logger.info("Successfully extracted structured data from document")
-            return structured_data
-
-        except Exception as e:
-            error_msg = f"Error in multimodal document analysis: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
+            raise AIError("Gemini Interpretation Engine failed", details=str(e))
 
     async def health_check(self) -> bool:
-        """Check if the AI service is healthy."""
+        """Check if the Gemini service is reachable."""
         try:
-            # Check if we can reach the model
-            self.client.models.get(model=self.model_name)
+            await self.client.aio.models.get(model=self.extractor_model)
             return True
-        except Exception as e:
-            logger.error(f"Gemini service health check failed: {str(e)}")
+        except Exception:
             return False
 
     async def close(self):
-        """Close method for interface consistency (genai.Client handles connection pooling)."""
-        logger.info("Gemini service client shutdown triggered")
+        """Logging shutdown."""
+        logger.info("Gemini service client shutdown")
 
 
 # Global AI service instance

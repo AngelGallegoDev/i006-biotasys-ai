@@ -4,13 +4,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from postgrest.exceptions import APIError as SupabaseAPIError
 
 from app.api.v1 import api_router
 from app.config.settings import settings
 from app.core.logging import get_logger, setup_logging
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
-from app.core.exceptions import supabase_exception_handler, APIError
+from app.core.exceptions import (
+    supabase_exception_handler, 
+    biotasys_exception_handler,
+    BiotasysException
+)
 
 # Setup logging
 setup_logging()
@@ -32,7 +37,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="FastAPI template with OpenRouter AI integration",
+    description="FastAPI Biotasys AI Dual Engine",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -52,14 +57,15 @@ app.add_middleware(
 app.include_router(api_router)
 
 # Register exception handlers
-app.add_exception_handler(APIError, supabase_exception_handler)
+app.add_exception_handler(BiotasysException, biotasys_exception_handler)
+app.add_exception_handler(SupabaseAPIError, supabase_exception_handler)
 
 
 @app.get("/", response_model=RootResponse)
 async def read_root():
     """Root endpoint with basic information."""
     return RootResponse(
-        message=f"Biotasys AI - Processing System",
+        message="Biotasys AI - Processing System",
         version=settings.app_version,
         docs="/docs",
         health="/api/v1/health"
