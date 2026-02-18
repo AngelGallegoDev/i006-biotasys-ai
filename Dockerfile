@@ -1,11 +1,12 @@
 # Use Python 3.11 slim image for smaller size
+FROM ghcr.io/astral-sh/uv:latest AS uv_bin
 FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_COMPILE_BYTECODE=1 \
+    UV_SYSTEM_PYTHON=1
 
 # Set work directory
 WORKDIR /app
@@ -15,11 +16,15 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better Docker layer caching
-COPY requirements.txt ./
+# Copy uv binary from the uv image
+COPY --from=uv_bin /uv /uv/bin /usr/local/bin/
 
-# Install dependencies using pip (more reliable for Docker builds)
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies using uv
+# We use --system to install into the system python since it's a container
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy the rest of the application code
 COPY . .
@@ -32,9 +37,10 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check (updated to new API path)
+# Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Run the application using python directly
-CMD ["python", "main.py"]
+# Run the application using uv
+CMD ["uv", "run", "fastapi", "run", "main.py"]
+

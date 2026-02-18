@@ -7,7 +7,7 @@
 Esta es una aplicación completa de API REST con integración de IA que incluye:
 
 - **Backend**: Python 3.8+ + FastAPI + OpenRouter AI
-- **Package Manager**: uv (ultra-rápido) o pip (tradicional)
+- **Package Manager**: uv (ultra-rápido)
 - **AI Integration**: OpenRouter con múltiples modelos (GPT-4, Claude, etc.)
 - **Configuration**: Environment-based con Pydantic Settings
 - **Documentation**: Auto-generada con Swagger UI y ReDoc
@@ -41,8 +41,8 @@ template-python-fastapi/
 │   └── services/           # Lógica de negocio
 │       ├── __init__.py
 │       └── ai_service.py  # Servicio de IA
-├── requirements.txt         # Dependencias (para pip)
 ├── pyproject.toml          # Configuración del proyecto (para uv)
+├── uv.lock                 # Lockfile de dependencias
 ├── Dockerfile              # Configuración Docker
 ├── docker-compose.yml      # Orquestación Docker Compose
 ├── .dockerignore           # Archivos ignorados por Docker
@@ -63,8 +63,7 @@ template-python-fastapi/
 
 ### Package Management
 
-- **uv**: Gestor de paquetes ultra-rápido (recomendado)
-- **pip**: Gestor tradicional (compatible)
+- **uv**: Gestor de paquetes ultra-rápido (único soportado)
 - **pyproject.toml**: Configuración moderna de proyecto
 
 ### AI Integration
@@ -81,43 +80,25 @@ template-python-fastapi/
 - **Logging**: Sistema de logging estructurado
 - **CORS**: Soporte para Cross-Origin Resource Sharing
 
-## 🚀 Configuración Rápida
-
-### Opción 1: Usando uv (Recomendado)
+## 🚀 Configuración
 
 ```bash
-# Instalar uv
+# 1. Instalar uv (si no lo tienes)
+# Windows:
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+# Linux/macOS:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clonar y configurar
+# 2. Clonar y configurar
 git clone <repository-url>
 cd template-python-fastapi
 cp env.example .env
 
-# Instalar dependencias
+# 3. Sincronizar dependencias (crea .venv automáticamente)
 uv sync
 
-# Ejecutar aplicación
+# 4. Ejecutar la aplicación
 uv run fastapi dev main.py
-```
-
-### Opción 2: Usando pip (Tradicional)
-
-```bash
-# Clonar y configurar
-git clone <repository-url>
-cd template-python-fastapi
-cp env.example .env
-
-# Crear entorno virtual
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Ejecutar aplicación
-fastapi dev main.py
 ```
 
 ## 🔧 Configuración de Variables de Entorno
@@ -225,8 +206,6 @@ docker run -p 8000:8000 \
 
 ## 🧪 Testing
 
-### Con uv
-
 ```bash
 # Instalar dependencias de desarrollo
 uv sync --dev
@@ -238,31 +217,13 @@ uv run pytest
 uv run pytest --cov=.
 ```
 
-### Con pip
-
-```bash
-# Instalar dependencias de testing
-pip install pytest pytest-asyncio httpx
-
-# Ejecutar tests
-pytest
-```
-
-## 📈 Ventajas de uv vs pip
-
-### uv (Recomendado)
+## 📈 Ventajas de uv
 
 - **10-100x más rápido** en instalación de dependencias
 - Mejor resolución de dependencias
 - Cache inteligente
 - Integración nativa con pyproject.toml
-- Gestión automática de entornos virtuales
-
-### pip (Tradicional)
-
-- Compatible con proyectos existentes
-- Ecosistema maduro
-- Familiar para la mayoría de desarrolladores
+- Gestión automática de entornos virtuales y versiones de Python
 
 ## 🔍 Ejemplos de Uso
 
