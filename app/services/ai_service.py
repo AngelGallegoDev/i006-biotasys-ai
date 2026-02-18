@@ -9,92 +9,150 @@ from google.genai import types
 from app.config.settings import settings
 from app.core.logging import get_logger
 from app.core.security import mask_api_key
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
+from app.models.schemas import (
+    MicrobiotaReport,
+    MicrobiotaInterpretation,
+)
 
 logger = get_logger(__name__)
 
 
 class AIService:
-    """Service for interacting with Google Gemini API via the new google-genai SDK."""
+    """
+    Service for interacting with Google Gemini API.
+    Biotasys Dual Engine:
+    - Extraction: Gemini 2.5 Flash Lite
+    - Interpretation: Gemini 3 Pro
+    """
 
     def __init__(self):
         """Initialize the Gemini AI service."""
         self.client = genai.Client(api_key=settings.gemini_api_key)
-        self.model_name = settings.model_name
+        self.extractor_model = settings.extraction_model
+        self.interpreter_model = settings.interpretation_model
         logger.info(
-            f"AI Service initialized with Gemini API key: {mask_api_key(settings.gemini_api_key)}"
+            f"AI Service initialized. Models: Extractor={self.extractor_model}, Interpreter={self.interpreter_model}"
         )
 
-    async def chat_completion(self, request: ChatRequest) -> ChatResponse:
-        """Create a chat completion using Gemini API (Async)."""
-
+    async def analyze_microbiota_document(self, file_bytes: bytes, mime_type: str) -> MicrobiotaReport:
+        """
+        Extract structured data from report (PDF/Image) using the high-speed extractor.
+        """
         try:
-            logger.info(f"Sending chat completion request for model: {self.model_name}")
-
-            # Use requested model if provided, else use default from settings
-            model_id = (
-                request.model
-                if request.model and "gemini" in request.model.lower()
-                else self.model_name
+            logger.info(f"Extracting data using {self.extractor_model}")
+            
+            system_instruction = (
+                "Eres un experto Bioinformático. Tu tarea es la EXTRACCIÓN de datos técnicos. "
+                "Sé preciso con los números y nombres de bacterias. Si no está, usa 0 o 'No disponible'."
             )
 
-            # Format messages for the new SDK
-            contents = []
-            for msg in request.messages:
-                role = "user" if msg.role == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part(text=msg.content)]))
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
+                        types.Part.from_text(text="Extrae la información técnica del informe de microbiota.")
+                    ]
+                )
+            ]
 
-            # Call Gemini via async client
             response = await self.client.aio.models.generate_content(
-                model=model_id,
+                model=self.extractor_model,
                 contents=contents,
                 config=types.GenerateContentConfig(
-                    max_output_tokens=request.max_tokens,
-                    temperature=request.temperature,
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaReport,
+                    temperature=0.1,
+                ),
+            )
+            return response.parsed
+
+        except Exception as e:
+            logger.error(f"Extraction error: {str(e)}")
+            raise e
+
+    async def interpret_microbiota_data(self, data: MicrobiotaReport) -> MicrobiotaInterpretation:
+        """
+        Generate advanced clinical reasoning using the powerful Gemini 3 Pro interpreter.
+        """
+        try:
+            logger.info(f"Interpreting data using {self.interpreter_model}")
+            
+            system_instruction = (
+                "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota. "
+                "Genera un informe técnico jerárquico siguiendo el PRD de Biotasys. "
+                "Criterios: Analizar diversidad (Shannon/Simpson), balance taxonómico (F/B), "
+                "peligro de oportunistas y perfil metabólico. "
+                "NO emitir diagnósticos médicos ni recomendaciones de tratamiento, solo observaciones técnicas. "
+                "Usa un tono profesional, jerárquico y estructurado."
+            )
+
+            # Pass the extracted JSON to the interpreter
+            prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"
+
+            response = await self.client.aio.models.generate_content(
+                model=self.interpreter_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaInterpretation,
+                    temperature=0.7,  # Slight creative temperature for synthesis
+                    # Thinking Level can be added here if supported by the SDK
+                ),
+            )
+            return response.parsed
+
+        except Exception as e:
+            logger.error(f"Interpretation error: {str(e)}")
+            raise e
+
+    async def analyze_microbiota_report(self, raw_text: str) -> MicrobiotaReport:
+        """
+        Analyze a raw microbiota document (PDF or Image) and extract structured data.
+        Uses Gemini's multimodal capability.
+        """
+        try:
+            logger.info(f"Starting multimodal extraction from document: {mime_type}")
+            
+            system_instruction = (
+                "Eres un experto Bioinformático y Analista de Microbiota en Biotasys. "
+                "Se te proporcionará un informe de laboratorio (PDF o Imagen). "
+                "Tu tarea es extraer con precisión absoluta los datos técnicos. "
+                "Busca métricas de diversidad, abundancias taxonómicas y marcadores funcionales. "
+                "Ignora gráficos decorativos y enfócate en las tablas y valores numéricos. "
+                "Si un valor no está presente, usa 0 para números y 'No disponible' para texto."
+            )
+
+            # Gemini 2.0 supports PDF and Images directly in the parts list
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
+                        types.Part.from_text(text="Extrae toda la información estructurada de este informe de microbiota.")
+                    ]
+                )
+            ]
+
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaReport,
+                    temperature=0.1,
                 ),
             )
 
-            chat_response = ChatResponse(
-                id=str(uuid.uuid4()),
-                created=int(time.time()),
-                model=model_id,
-                choices=[
-                    {
-                        "message": {"role": "assistant", "content": response.text},
-                        "finish_reason": "stop",
-                    }
-                ],
-                usage={
-                    "total_tokens": response.usage_metadata.total_token_count if response.usage_metadata else 0
-                },
-            )
-
-            logger.info(f"Chat completion successful: {chat_response.id}")
-            return chat_response
+            structured_data = response.parsed
+            logger.info("Successfully extracted structured data from document")
+            return structured_data
 
         except Exception as e:
-            error_msg = f"Error calling Gemini API: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
-    async def list_models(self) -> list[ModelInfo]:
-        """List available Gemini models."""
-        try:
-            logger.info("Fetching available models from Gemini")
-            models = []
-            # Note: list() is usually sync in this SDK but can be iterated
-            for m in self.client.models.list():
-                models.append(
-                    ModelInfo(
-                        id=m.name,
-                        name=m.display_name or m.name,
-                        description=m.description or "",
-                        pricing={"info": "Refer to Google Cloud pricing"},
-                    )
-                )
-            return models
-        except Exception as e:
-            error_msg = f"Error fetching models: {str(e)}"
+            error_msg = f"Error in multimodal document analysis: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
 

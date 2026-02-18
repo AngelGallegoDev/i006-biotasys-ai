@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     # Gemini Configuration
     gemini_api_key: str
-    model_name: str = "gemini-2.0-flash-lite-preview-02-05"
+    extraction_model: str = "gemini-2.5-flash-lite"
+    interpretation_model: str = "gemini-3-pro"
 
     # JWT Configuration
     jwt_secret_key: str

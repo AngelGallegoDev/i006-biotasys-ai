@@ -59,19 +59,11 @@ app.add_exception_handler(APIError, supabase_exception_handler)
 async def read_root():
     """Root endpoint with basic information."""
     return RootResponse(
-        message=f"Biotasys AI - Running on {settings.app_name}",
+        message=f"Biotasys AI - Processing System",
         version=settings.app_version,
         docs="/docs",
         health="/api/v1/health"
     )
-
-
-# Legacy endpoint for backward compatibility
-# TODO: [DEBT] Remove this legacy endpoint in next sprint
-@app.get("/items/{item_id}")
-async def read_item(item_id: int, q: str | None = None):
-    """Example endpoint from original template."""
-    return {"item_id": item_id, "q": q}
 
 
 if __name__ == "__main__":
