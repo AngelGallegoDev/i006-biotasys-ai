@@ -10,6 +10,7 @@ from app.config.settings import settings
 from app.core.logging import get_logger, setup_logging
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
+from app.core.exceptions import supabase_exception_handler, APIError
 
 # Setup logging
 setup_logging()
@@ -49,6 +50,9 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(api_router)
+
+# Register exception handlers
+app.add_exception_handler(APIError, supabase_exception_handler)
 
 
 @app.get("/", response_model=RootResponse)
