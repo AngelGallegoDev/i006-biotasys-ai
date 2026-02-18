@@ -63,6 +63,7 @@ async def read_root():
 
 
 # Legacy endpoint for backward compatibility
+# TODO: [DEBT] Remove this legacy endpoint in next sprint
 @app.get("/items/{item_id}")
 async def read_item(item_id: int, q: str | None = None):
     """Example endpoint from original template."""

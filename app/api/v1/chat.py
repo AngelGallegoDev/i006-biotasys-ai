@@ -1,6 +1,5 @@
 """Chat-related API endpoints."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -37,7 +36,7 @@ async def create_chat_completion(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/models", response_model=List[ModelInfo])
+@router.get("/models", response_model=list[ModelInfo])
 async def list_models(ai_service: AIService = Depends(get_ai_service)):
     """
     List all available AI models from OpenRouter.

@@ -2,7 +2,6 @@
 
 import time
 import uuid
-from typing import List
 
 from google import genai
 from google.genai import types
@@ -78,7 +77,7 @@ class AIService:
             logger.error(error_msg)
             raise Exception(error_msg)
 
-    async def list_models(self) -> List[ModelInfo]:
+    async def list_models(self) -> list[ModelInfo]:
         """List available Gemini models."""
         try:
             logger.info("Fetching available models from Gemini")

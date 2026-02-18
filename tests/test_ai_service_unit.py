@@ -1,7 +1,10 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+
+from app.models.schemas import ChatMessage, ChatRequest
 from app.services.ai_service import AIService
-from app.models.schemas import ChatRequest, ChatMessage
+
 
 @pytest.fixture
 def mock_genai_client(mocker):
@@ -21,19 +24,19 @@ async def test_chat_completion_success(mock_genai_client):
     # Mock usage metadata
     mock_response.usage_metadata = MagicMock()
     mock_response.usage_metadata.total_token_count = 10
-    
+
     # aio client call: await client.aio.models.generate_content
     mock_genai_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
-    
+
     service = AIService()
     request = ChatRequest(
         model="gemini-2.0-flash",
         messages=[ChatMessage(role="user", content="Hi")]
     )
-    
+
     # Execute
     response = await service.chat_completion(request)
-    
+
     # Assert
     assert response.choices[0]["message"]["content"] == "Hello! I am a mocked AI."
     assert response.model == "gemini-2.0-flash"
@@ -43,10 +46,10 @@ async def test_chat_completion_success(mock_genai_client):
 async def test_health_check_healthy(mock_genai_client):
     """Test health check when service is healthy."""
     mock_genai_client.models.get.return_value = MagicMock()
-    
+
     service = AIService()
     is_healthy = await service.health_check()
-    
+
     assert is_healthy is True
     mock_genai_client.models.get.assert_called_once_with(model=service.model_name)
 
@@ -54,8 +57,8 @@ async def test_health_check_healthy(mock_genai_client):
 async def test_health_check_unhealthy(mock_genai_client):
     """Test health check when service raises exception."""
     mock_genai_client.models.get.side_effect = Exception("API Key Error")
-    
+
     service = AIService()
     is_healthy = await service.health_check()
-    
+
     assert is_healthy is False

@@ -1,7 +1,7 @@
 """Pydantic models for request/response schemas."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -15,10 +15,10 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     """Chat completion request model."""
     model: str = Field(default="openai/gpt-3.5-turbo", description="AI model to use")
-    messages: List[ChatMessage] = Field(..., description="List of chat messages")
-    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
-    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    stream: Optional[bool] = Field(default=False, description="Enable streaming response")
+    messages: list[ChatMessage] = Field(..., description="List of chat messages")
+    max_tokens: int | None = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
+    temperature: float | None = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+    stream: bool | None = Field(default=False, description="Enable streaming response")
 
 
 class ChatResponse(BaseModel):
@@ -27,16 +27,16 @@ class ChatResponse(BaseModel):
     object: str = Field(default="chat.completion", description="Object type")
     created: int = Field(..., description="Creation timestamp")
     model: str = Field(..., description="Model used")
-    choices: List[Dict[str, Any]] = Field(..., description="Response choices")
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
+    choices: list[dict[str, Any]] = Field(..., description="Response choices")
+    usage: dict[str, int] | None = Field(default=None, description="Token usage information")
 
 
 class ModelInfo(BaseModel):
     """AI model information."""
     id: str = Field(..., description="Model ID")
-    name: Optional[str] = Field(default=None, description="Model display name")
-    description: Optional[str] = Field(default=None, description="Model description")
-    pricing: Optional[Dict[str, Any]] = Field(default=None, description="Pricing information")
+    name: str | None = Field(default=None, description="Model display name")
+    description: str | None = Field(default=None, description="Model description")
+    pricing: dict[str, Any] | None = Field(default=None, description="Pricing information")
 
 
 class HealthResponse(BaseModel):
@@ -44,15 +44,15 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status")
     timestamp: datetime = Field(..., description="Response timestamp")
     version: str = Field(..., description="Application version")
-    message: Optional[str] = Field(default=None, description="Additional status message")
-    database: Optional[Dict[str, Any]] = Field(default=None, description="Database status")
-    ai_service: Optional[Dict[str, Any]] = Field(default=None, description="AI service status")
+    message: str | None = Field(default=None, description="Additional status message")
+    database: dict[str, Any] | None = Field(default=None, description="Database status")
+    ai_service: dict[str, Any] | None = Field(default=None, description="AI service status")
 
 
 class ErrorResponse(BaseModel):
     """Error response model."""
     error: str = Field(..., description="Error type")
-    detail: Optional[str] = Field(default=None, description="Error details")
+    detail: str | None = Field(default=None, description="Error details")
     timestamp: datetime = Field(default_factory=datetime.now, description="Error timestamp")
 
 

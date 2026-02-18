@@ -1,46 +1,39 @@
-# Use Python 3.11 slim image for smaller size
-FROM ghcr.io/astral-sh/uv:latest AS uv_bin
-FROM python:3.13-slim
+# Use an official Python runtime as a parent image
+FROM python:3.12-slim
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_SYSTEM_PYTHON=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 # Set work directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy uv binary from the uv image
-COPY --from=uv_bin /uv /uv/bin /usr/local/bin/
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy dependency files
+# Copy project configuration files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies using uv
-# We use --system to install into the system python since it's a container
-RUN uv sync --frozen --no-dev --no-install-project
+# Install dependencies
+# --frozen ensures we use the exact versions from uv.lock
+# --no-install-project avoids installing the package itself yet (just deps)
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy the rest of the application code
 COPY . .
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Install the project itself
+RUN uv sync --frozen --no-dev
 
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
-
-# Run the application using uv
-CMD ["uv", "run", "fastapi", "run", "main.py"]
-
+# Command to run the application
+# Use 'uv run' to execute in the virtual environment created by uv sync
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

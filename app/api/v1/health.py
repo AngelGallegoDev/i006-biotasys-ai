@@ -6,15 +6,15 @@ from fastapi import APIRouter
 
 from app.config.settings import settings
 from app.core.logging import get_logger
+from app.core.supabase import supabase
 from app.models.schemas import HealthResponse
+from app.services.ai_service import ai_service
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-from app.core.supabase import supabase
-from app.services.ai_service import ai_service
 
 @router.get("", response_model=HealthResponse)
 async def health_check():

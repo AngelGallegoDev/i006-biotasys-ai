@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import Optional
 
 from app.config.settings import settings
 
@@ -31,6 +30,6 @@ def setup_logging() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger instance."""
     return logging.getLogger(name or __name__)
