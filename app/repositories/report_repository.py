@@ -15,27 +15,45 @@ logger = get_logger(__name__)
 class ReportRepository(BaseRepository):
     """Repository for managing analyzed microbiota reports in Supabase."""
 
-    async def save_report(self, report: MicrobiotaReport, metadata: AnalysisRequest) -> dict[str, Any]:
+    async def save_report(self, report: MicrobiotaReport, metadata: AnalysisRequest | None = None) -> dict[str, Any]:
         """
         Saves a structured microbiota report linking it to the source document and hierarchy.
+        Maps Backend A metadata to existing Supabase columns with UUID safety.
         """
+        def ensure_uuid(val: str) -> str:
+            try:
+                return str(uuid.UUID(val))
+            except (ValueError, AttributeError):
+                # Generate a deterministic UUID if it's just a string like "DR_REVISOR_01"
+                return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(val)))
+
         try:
             report_id = str(uuid.uuid4())
+            
+            # Extract basic data
+            raw_patient_id = report.metadata.patient_id if report.metadata else "Unknown"
+            
             data = {
                 "id": report_id,
-                "id_documento_origen": metadata.documento_id,
-                "empresa_id": metadata.empresa_id,
-                "doctor_id": metadata.doctor_id,
-                "file_url_origen": metadata.file_url,
                 "report_data": report.model_dump(mode="json"),
                 "created_at": datetime.now(UTC).isoformat(),
+                "patient_id": ensure_uuid(raw_patient_id),
             }
 
+            # Optional mapping if metadata is provided (Backend A simulation)
+            if metadata:
+                data["study_code"] = metadata.documento_id
+                data["user_id"] = ensure_uuid(metadata.doctor_id)
+            else:
+                # Fallback to report metadata for seeds/fallback
+                data["study_code"] = report.metadata.study_code if report.metadata else f"REF-{report_id[:8]}"
+                data["user_id"] = ensure_uuid("SYSTEM_INTERNAL")
+
             result = self.client.table("microbiota_reports").insert(data).execute()
-            logger.info(f"Report saved and linked: {metadata.documento_id}")
+            logger.info(f"Report saved successfully in Supabase: {data.get('study_code')}")
             return result.data[0] if result.data else {}
         except Exception as e:
-            logger.error(f"Error saving linked report: {str(e)}")
+            logger.error(f"Persistence Failure: {str(e)}")
             raise DatabaseError("Failed to save report in Supabase", details=str(e))
 
     async def get_reports_by_patient(self, patient_id: str) -> list[dict[str, Any]]:

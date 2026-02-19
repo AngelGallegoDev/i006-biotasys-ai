@@ -34,13 +34,13 @@ class AIService:
         self.extractor_model = settings.extraction_model
         self.interpreter_model = settings.interpretation_model
         logger.info(
-            f"AI Service initialized. Models: Extractor={self.extractor_model}, Interpreter={self.interpreter_model}"
+            f"AI Service initialized. Ready for Extraction ({self.extractor_model}) and Interpretation ({self.interpreter_model})"
         )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(Exception),  # Better: capture specific SDK errors if possible
+        retry=retry_if_exception_type(Exception),
         reraise=True
     )
     async def analyze_microbiota_document(self, file_bytes: bytes, mime_type: str) -> MicrobiotaReport:
@@ -51,8 +51,10 @@ class AIService:
             logger.info(f"Extracting technical data using {self.extractor_model}")
             
             system_instruction = (
-                "Eres un experto Bioinformático. Tu tarea es la EXTRACCIÓN de datos técnicos. "
-                "Sé preciso con los números y nombres de bacterias. Si no está, usa 0 o 'No disponible'."
+                "Eres un experto Bioinformático. Tu tarea es extraer datos de un informe de laboratorio de microbiota. "
+                "Genera una respuesta JSON que cumpla ESTRICTAMENTE con el esquema proporcionado. "
+                "No inventes datos. Si un campo no se encuentra, usa valores por defecto (0 para números, 'No disponible' para texto). "
+                "Asegúrate de extraer todas las abundancias taxonómicas mencionadas."
             )
 
             contents = [
@@ -60,7 +62,7 @@ class AIService:
                     role="user",
                     parts=[
                         types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
-                        types.Part.from_text(text="Extrae la información técnica del informe de microbiota.")
+                        types.Part.from_text(text="Analiza este documento y extrae la información técnica en formato JSON.")
                     ]
                 )
             ]
@@ -75,10 +77,19 @@ class AIService:
                     temperature=0.1,
                 ),
             )
+            
+            if not response.parsed:
+                # Log what we actually got
+                raw_text = getattr(response, 'text', "No text field available")
+                logger.error(f"Extraction failed to parse into schema. Raw output might be: {raw_text[:500]}")
+                raise AIError("Extraction failed: Output did not match technical schema. Please check the document format.")
+
             return response.parsed
 
         except Exception as e:
             logger.error(f"Extraction error: {str(e)}")
+            if isinstance(e, AIError):
+                raise e
             raise AIError("Gemini Extraction Engine failed", details=str(e))
 
     @retry(
@@ -91,16 +102,19 @@ class AIService:
         """
         Generate advanced clinical reasoning using the powerful Gemini 3 Pro interpreter.
         """
+        if not data:
+            raise AIError("Interpretation failed: Input data is null")
+
         try:
             logger.info(f"Interpreting data using {self.interpreter_model}")
             
             system_instruction = (
                 "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota. "
                 "Genera un informe técnico jerárquico siguiendo el PRD de Biotasys. "
-                "Criterios: Analizar diversidad (Shannon/Simpson), balance taxonómico (F/B), "
+                "Criterios: Analizar diversidad (índices específicos: shannon_index y simpson_index), balance taxonómico (F/B), "
                 "peligro de oportunistas y perfil metabólico. "
-                "NO emitir diagnósticos médicos ni recomendaciones de tratamiento, solo observaciones técnicas. "
-                "Usa un tono profesional, jerárquico y estructurado."
+                "No menciones datos que no aparezcan en el JSON técnico. "
+                "NO emitir diagnósticos médicos ni recomendaciones de tratamiento, solo observaciones técnicas."
             )
 
             prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"
@@ -115,10 +129,16 @@ class AIService:
                     temperature=0.7,
                 ),
             )
+
+            if not response.parsed:
+                raise AIError("Interpretation failed: Gemini returned null parsed data.")
+
             return response.parsed
 
         except Exception as e:
             logger.error(f"Interpretation error: {str(e)}")
+            if isinstance(e, AIError):
+                raise e
             raise AIError("Gemini Interpretation Engine failed", details=str(e))
 
     async def health_check(self) -> bool:

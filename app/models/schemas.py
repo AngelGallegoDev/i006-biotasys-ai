@@ -35,32 +35,18 @@ class RootResponse(BaseModel):
 
 class SequencingData(BaseModel):
     """Technical sequencing and quality metadata."""
-    technology: str = Field(..., description="Analysis technology (e.g., 16S rRNA)")
-    region: str = Field(..., description="Sequenced region (e.g., V3–V4)")
-    platform: str = Field(..., description="Sequencing platform (e.g., Illumina)")
-    total_reads: int = Field(..., description="Total obtained reads")
-    filtered_reads: int = Field(..., description="Filtered reads after quality check")
-
-    @field_validator("total_reads", "filtered_reads")
-    @classmethod
-    def validate_positive_reads(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("Reads cannot be negative")
-        return v
+    technology: str = Field(default="No disponible")
+    region: str = Field(default="No disponible")
+    platform: str = Field(default="No disponible")
+    total_reads: int = Field(default=0)
+    filtered_reads: int = Field(default=0)
 
 
 class DiversityIndices(BaseModel):
     """Ecological diversity and richness metrics."""
-    shannon_index: float = Field(..., description="Shannon alpha diversity index")
-    simpson_index: float = Field(..., description="Simpson alpha diversity index")
-    observed_otus: int = Field(..., description="Observed richness (OTUs)")
-
-    @field_validator("shannon_index", "simpson_index", "observed_otus")
-    @classmethod
-    def validate_positive_indices(cls, v: float) -> float:
-        if v < 0:
-            raise ValueError("Diversity indices must be positive")
-        return v
+    shannon_index: float = Field(default=0.0)
+    simpson_index: float = Field(default=0.0)
+    observed_otus: int = Field(default=0)
 
 
 class TaxonomicAbundance(BaseModel):
@@ -68,108 +54,101 @@ class TaxonomicAbundance(BaseModel):
     name: str = Field(..., description="Name of the taxon")
     abundance: float = Field(..., description="Relative abundance percentage")
 
-    @field_validator("abundance")
-    @classmethod
-    def validate_abundance_range(cls, v: float) -> float:
-        if not (0 <= v <= 100):
-            raise ValueError(f"Abundance must be between 0 and 100, got {v}")
-        return v
-
 
 class TaxonomicComposition(BaseModel):
     """Distribution of bacteria across different levels."""
-    phyla: list[TaxonomicAbundance] = Field(..., description="Phyla relative abundance")
-    firmicutes_bacteroidetes_ratio: float = Field(..., description="F/B ratio")
-    predominant_genera: list[TaxonomicAbundance] = Field(..., description="Predominant genera")
-    detected_species: list[TaxonomicAbundance] = Field(..., description="Detected species")
+    phyla: list[TaxonomicAbundance] = Field(default_factory=list)
+    firmicutes_bacteroidetes_ratio: float = Field(default=0.0)
+    predominant_genera: list[TaxonomicAbundance] = Field(default_factory=list)
+    detected_species: list[TaxonomicAbundance] = Field(default_factory=list)
 
-    @field_validator("firmicutes_bacteroidetes_ratio")
-    @classmethod
-    def validate_fb_ratio(cls, v: float) -> float:
-        if v < 0:
-            raise ValueError("Firmicutes/Bacteroidetes ratio cannot be negative")
-        return v
+
+class OpportunisticPathogen(BaseModel):
+    """Status of a specific opportunistic microorganism."""
+    genus: str = Field(..., description="Genus name")
+    species: str = Field(default="spp.")
+    status: str = Field(default="No detectado")
+    note: str | None = None
+
+
+class FunctionalMarkerItem(BaseModel):
+    """Evaluation of a specific functional pathway or gene."""
+    marker_name: str
+    status: str = Field(default="Normal")
+    value: str | None = None
 
 
 class FunctionalMarkers(BaseModel):
     """Functional and microbiological markers."""
-    butyrate_producers: str = Field(..., description="Butyrate producing bacteria status")
-    propionate_producers: str = Field(..., description="Propionate producing bacteria status")
-    suggested_enterotype: str = Field(..., description="Suggested enterotype (e.g., Type Bacteroides)")
-    opportunistic_microorganisms: list[dict[str, str]] = Field(..., description="Opportunistic pathogens status")
-    functional_genes: dict[str, str] = Field(..., description="Inferred functional genes (PICRUSt)")
+    butyrate_producers: str = Field(default="No disponible")
+    propionate_producers: str = Field(default="No disponible")
+    suggested_enterotype: str = Field(default="No disponible")
+    opportunistic_microorganisms: list[OpportunisticPathogen] = Field(default_factory=list)
+    functional_markers_list: list[FunctionalMarkerItem] = Field(default_factory=list)
 
 
 class StudyMetadata(BaseModel):
     """Administrative and demographic metadata."""
-    study_code: str = Field(..., description="Biotasys study code")
-    lab_internal_code: str = Field(..., description="Internal laboratory code")
-    patient_id: str = Field(..., description="Patient identifier")
-    sex: str = Field(..., description="Patient sex")
-    age: int = Field(..., description="Patient age")
-    sample_collection_date: datetime = Field(..., description="Date of sample collection")
-    sample_reception_date: datetime = Field(..., description="Date of sample reception")
+    study_code: str = Field(default="No disponible")
+    lab_internal_code: str = Field(default="No disponible")
+    patient_id: str = Field(default="No disponible")
+    sex: str = Field(default="No disponible")
+    age: int = Field(default=0)
+    sample_collection_date: datetime | None = None
+    sample_reception_date: datetime | None = None
     sample_type: str = Field(default="Materia fecal")
 
 
 class ClinicalContext(BaseModel):
     """Clinical history and observations."""
-    inflammatory_markers: str = Field(..., description="Associated inflammatory markers")
-    antibiotic_use: bool = Field(..., description="Recent use of antibiotics")
-    probiotic_use: bool = Field(..., description="Use of probiotics")
-    dietary_pattern: str = Field(..., description="Declared dietary pattern")
-    lab_observations: str = Field(..., description="Lab technical observations")
+    inflammatory_markers: str = Field(default="No disponible")
+    antibiotic_use: bool = Field(default=False)
+    probiotic_use: bool = Field(default=False)
+    dietary_pattern: str = Field(default="No disponible")
+    lab_observations: str = Field(default="No disponible")
 
 
 class ClinicalObservation(BaseModel):
     """A technical observation or alert."""
-    title: str = Field(..., description="Observation title")
-    severity: str = Field(..., description="Level: Info, Warning, Alert")
-    description: str = Field(..., description="Technical explanation")
+    title: str
+    severity: str
+    description: str
 
 
 class FunctionalInterpretation(BaseModel):
     """Interpretation of metabolic pathways."""
     pathway: str
-    status: str = Field(..., description="Evaluation: Optimal, Reduced, Enhanced")
+    status: str
     note: str
 
 
 class MicrobiotaInterpretation(BaseModel):
     """Advanced technical report generated by Gemini 3 Pro."""
-    summary: str = Field(..., description="Qualitative general overview")
-    diversity_analysis: str = Field(..., description="Technical interpretation of richness and homogeneity")
-    taxonomic_balance: list[ClinicalObservation] = Field(..., description="Alerts on dominance or ratios")
-    metabolic_profile: list[FunctionalInterpretation] = Field(..., description="Assessment of functional genes")
-    opportunistic_risk: list[ClinicalObservation] = Field(..., description="Pathogen alerts")
-    final_technical_notes: str = Field(..., description="Synthesized technical closure")
+    summary: str
+    diversity_analysis: str
+    taxonomic_balance: list[ClinicalObservation] = Field(default_factory=list)
+    metabolic_profile: list[FunctionalInterpretation] = Field(default_factory=list)
+    opportunistic_risk: list[ClinicalObservation] = Field(default_factory=list)
+    final_technical_notes: str
 
 
 class MicrobiotaReport(BaseModel):
-    """Full structured microbiota report with its technical interpretation."""
-    metadata: StudyMetadata
-    sequencing: SequencingData
-    diversity: DiversityIndices
-    taxonomy: TaxonomicComposition
-    functionality: FunctionalMarkers
-    clinical_context: ClinicalContext
-    interpretation: MicrobiotaInterpretation | None = Field(default=None, description="Detailed analysis from Gemini 3 Pro")
-    engine_version: str = Field(default="1.1.0", description="Version of the analysis engine")
+    """Full structured microbiota report."""
+    metadata: StudyMetadata = Field(default_factory=StudyMetadata)
+    sequencing: SequencingData = Field(default_factory=SequencingData)
+    diversity: DiversityIndices = Field(default_factory=DiversityIndices)
+    taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
+    functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
+    clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
+    interpretation: MicrobiotaInterpretation | None = None
+    engine_version: str = Field(default="1.2.5")
     processed_at: datetime = Field(default_factory=datetime.now)
-
-    @model_validator(mode="after")
-    def validate_clinical_integrity(self) -> "MicrobiotaReport":
-        # Ensure that if we have taxonomy, the sum is reasonable (allowing for 'Others')
-        total_phyla = sum(p.abundance for p in self.taxonomy.phyla)
-        if total_phyla > 100.5: # Small margin for rounding
-            raise ValueError(f"Sum of phyla abundances exceeds 100%: {total_phyla}")
-        return self
 
 
 class AnalysisRequest(BaseModel):
-    """Payload requirement from Backend A to Backend B (Biotasys Engine)."""
-    file_url: str = Field(..., description="The Supabase Storage URL of the PDF/Image")
-    documento_id: str = Field(..., description="Unique ID of the report in the source system")
-    empresa_id: str = Field(..., description="Clinic/Lab owner ID")
-    doctor_id: str = Field(..., description="Requesting doctor ID")
-    fecha_envio: datetime = Field(..., description="Original timestamp from system A")
+    """Payload requirement from Backend A to Backend B."""
+    file_url: str
+    documento_id: str
+    empresa_id: str
+    doctor_id: str
+    fecha_envio: datetime
