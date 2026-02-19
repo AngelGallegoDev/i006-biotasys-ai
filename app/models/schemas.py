@@ -63,6 +63,20 @@ class TaxonomicComposition(BaseModel):
     detected_species: list[TaxonomicAbundance] = Field(default_factory=list)
     other_phyla_abundance: float = Field(default=0.0, description="Cumulative abundance of all other phyla not explicitly listed")
 
+    @model_validator(mode="after")
+    def calculate_fb_ratio(self) -> "TaxonomicComposition":
+        """Fail-safe: Calculate ratio if missing but phyla data is present."""
+        if self.firmicutes_bacteroidetes_ratio > 0:
+            return self
+
+        f_abun = next((p.abundance for p in self.phyla if p.name.lower() == "firmicutes"), 0.0)
+        b_abun = next((p.abundance for p in self.phyla if p.name.lower() == "bacteroidetes"), 0.0)
+        
+        if b_abun > 0:
+            self.firmicutes_bacteroidetes_ratio = round(f_abun / b_abun, 2)
+            
+        return self
+
 
 class OpportunisticPathogen(BaseModel):
     """Status of a specific opportunistic microorganism."""

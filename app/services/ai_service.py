@@ -55,7 +55,11 @@ class AIService:
                 "Eres un experto Bioinformático. Tu tarea es extraer datos de un informe de laboratorio de microbiota. "
                 "Genera una respuesta JSON que cumpla ESTRICTAMENTE con el esquema proporcionado. "
                 "No inventes datos. Si un campo no se encuentra, usa valores por defecto (0 para números, 'No disponible' para texto). "
-                "Presta especial atención a: 1. Gestión de la muestra (método, transporte, estado), 2. Otros phyla, 3. Genes funcionales (PICRUSt)."
+                "PRESTA ESPECIAL ATENCIÓN A: "
+                "1. Gestión de la muestra (método, transporte, estado). "
+                "2. Otros phyla (calcula la abundancia acumulada de filos no listados). "
+                "3. Ratio Firmicutes/Bacteroidetes: Si el ratio no aparece explícitamente pero tienes las abundancias de ambos filos, CALCÚLALO (Firmicutes / Bacteroidetes). "
+                "4. Genes funcionales (PICRUSt)."
             )
 
             contents = [

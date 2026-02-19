@@ -7,9 +7,10 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.logging import get_logger
+from app.core.logging import get_logger, setup_logging
 from app.core.supabase import supabase
 
+setup_logging()
 logger = get_logger(__name__)
 
 async def create_tables():
@@ -17,7 +18,7 @@ async def create_tables():
     Attempts to create the microbiota_reports table using the RPC/SQL gateway.
     Note: This depends on the Supabase Key permissions.
     """
-    logger.info("🚀 Attempting to create table 'microbiota_reports' via SQL gateway...")
+    logger.info("🚀 Checking database schema for Hierarchy (Companies/Collaborators)...")
 
     sql = """
     -- 1. Companies Master Table
@@ -47,6 +48,14 @@ async def create_tables():
         created_at TIMESTAMPTZ DEFAULT now()
     );
 
+    -- Special case: If column doesn't exist but table does (migration)
+    DO $$ 
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='microbiota_reports' AND column_name='company_id') THEN
+            ALTER TABLE public.microbiota_reports ADD COLUMN company_id UUID REFERENCES public.companies(id) ON DELETE SET NULL;
+        END IF;
+    END $$;
+
     -- Enable RLS
     ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
     ALTER TABLE public.collaborators ENABLE ROW LEVEL SECURITY;
@@ -73,24 +82,42 @@ async def create_tables():
     """
 
     try:
-        # We try to use the undocumented but often available _raw_sql or similar if possible,
-        # but since 'supabase-py' is limited, we'll try to use a function or execute if available.
-        # Most Supabase clients don't allow raw SQL for SECURITY reasons.
-        # If this fails, we will know for sure we need the manual step or DATABASE_URL.
-
-        # Alternative: try a dummy insert to see if it triggers an error that tells us something
-        logger.warning("Supabase client generally restricts DDL (CREATE TABLE) via API for safety.")
-        logger.info("Checking if table exists by doing a silent select...")
-
+        logger.info("Checking database schema status...")
+        
+        missing_stuff = False
+        
+        # 1. Check companies table
         try:
-            supabase.table("microbiota_reports").select("id").limit(1).execute()
-            logger.info("✅ Table already exists!")
+            supabase.table("companies").select("id").limit(1).execute()
+            logger.info("✅ Table 'companies' exists.")
         except Exception:
-            logger.error("❌ Table does not exist and cannot be created via the REST API Key.")
+            logger.warning("❌ Table 'companies' is missing.")
+            missing_stuff = True
+
+        # 2. Check collaborators table
+        try:
+            supabase.table("collaborators").select("id").limit(1).execute()
+            logger.info("✅ Table 'collaborators' exists.")
+        except Exception:
+            logger.warning("❌ Table 'collaborators' is missing.")
+            missing_stuff = True
+
+        # 3. Check company_id column in reports
+        try:
+            supabase.table("microbiota_reports").select("company_id").limit(1).execute()
+            logger.info("✅ Column 'company_id' exists in 'microbiota_reports'.")
+        except Exception:
+            logger.warning("❌ Column 'company_id' is missing in 'microbiota_reports'.")
+            missing_stuff = True
+
+        if missing_stuff:
+            logger.error("❌ Database schema is OUTDATED.")
             logger.info("Please run the following SQL in your Supabase Dashboard -> SQL Editor:")
             print("\n" + "="*50)
             print(sql)
             print("="*50 + "\n")
+        else:
+            logger.info("🚀 Database schema is fully ALIGNED.")
 
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")

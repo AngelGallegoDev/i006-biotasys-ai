@@ -1,6 +1,7 @@
 """Report repository for microbiota analysis persistence."""
 
 import uuid
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,22 +29,25 @@ class ReportRepository(BaseRepository):
                 return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(val)))
 
         async def upsert_entity(table: str, entity_id: str, default_name: str, extra_data: dict | None = None) -> str:
-            """Ensures an entity exists in the master table, creating it if necessary."""
+            """Ensures an entity exists in the master table using an atomic upsert."""
             safe_id = ensure_uuid(entity_id)
+            
+            # Prepare data for upsert
+            data = {"id": safe_id, "name": default_name}
+            if extra_data:
+                data.update(extra_data)
+                
             try:
-                # Check if exists
-                existing = self.client.table(table).select("id").eq("id", safe_id).maybe_single().execute()
-                if not existing.data:
-                    # Create placeholder
-                    insert_data = {"id": safe_id, "name": default_name}
-                    if extra_data:
-                        insert_data.update(extra_data)
-                    self.client.table(table).insert(insert_data).execute()
-                    logger.info(f"Created master entity in {table}: {default_name} ({safe_id})")
+                # We use upsert to handle existance and creation in one go
+                await asyncio.to_thread(
+                    lambda: self.client.table(table).upsert(data, on_conflict="id").execute()
+                )
+                logger.info(f"Master entity synchronized in {table}: {default_name} ({safe_id})")
                 return safe_id
             except Exception as e:
-                logger.warning(f"Failed to upsert entity in {table}: {str(e)}")
-                return safe_id
+                logger.error(f"Critical failure upserting entity in {table}: {str(e)}")
+                # Re-raise to prevent foreign key violations downstream
+                raise DatabaseError(f"Master data synchronization failed for {table}", details=str(e))
 
         try:
             report_id = str(uuid.uuid4())
@@ -81,7 +85,9 @@ class ReportRepository(BaseRepository):
                 "study_code": metadata.documento_id if metadata else (report.metadata.study_code if report.metadata else f"REF-{report_id[:8]}")
             }
 
-            result = self.client.table("microbiota_reports").insert(data).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("microbiota_reports").insert(data).execute()
+            )
             logger.info(f"Report saved with Hierarchy [Co: {final_company_id} | Usr: {final_user_id}]")
             return result.data[0] if result.data else {}
         except Exception as e:
