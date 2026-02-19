@@ -44,7 +44,10 @@ async def test_pro_clinical_flow_full_integration(service, respx_mock):
         functionality=FunctionalMarkers(
             butyrate_producers="Optimal", propionate_producers="Optimal",
             suggested_enterotype="Type 1", opportunistic_microorganisms=[],
-            functional_genes={}
+            functional_markers_list=[],
+            carbohydrate_metabolism="Normal",
+            lipid_metabolism="Normal",
+            vitamin_b_synthesis="Normal"
         ),
         clinical_context=ClinicalContext(
             inflammatory_markers="None", antibiotic_use=False,
@@ -54,7 +57,10 @@ async def test_pro_clinical_flow_full_integration(service, respx_mock):
 
     mock_interpretation = MicrobiotaInterpretation(
         summary="Optimal", diversity_analysis="Good", taxonomic_balance=[],
-        metabolic_profile=[], opportunistic_risk=[], final_technical_notes=""
+        metabolic_profile=[], opportunistic_risk=[], final_technical_notes="",
+        gut_health_score={"value": 95.0, "label": "Excelente", "breakdown": "Everything is awesome"},
+        diversity_diagnosis={"score": 3.5, "interpretation": "High", "clinical_implication": "Good resilience"},
+        enterotype_analysis={"enterotype": "Bacteroides", "confidence": "High", "description": "Western diet associated"}
     )
 
     # 2. MOCK THE EXTERNAL WORLD

@@ -19,6 +19,11 @@ async def test_save_report_success(repository, mock_supabase):
     """Test successful report persistence."""
     mock_report = MagicMock(spec=MicrobiotaReport)
     mock_report.model_dump.return_value = {"foo": "bar"}
+    # Explicitly set metadata values. Since spec=Model forces attribute existence, 
+    # we must ensure metadata is a Mock that accepts these attributes.
+    mock_report.metadata = MagicMock()
+    mock_report.metadata.patient_id = "PATIENT_123"
+    mock_report.metadata.study_code = "STUDY_456"
     
     mock_request = MagicMock(spec=AnalysisRequest)
     mock_request.documento_id = "DOC123"

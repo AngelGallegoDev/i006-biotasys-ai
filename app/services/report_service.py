@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.exceptions import AIError
 from app.models.schemas import AnalysisRequest, MicrobiotaReport
 from app.repositories.report_repository import ReportRepository
 from app.services.ai_service import AIService, ai_service

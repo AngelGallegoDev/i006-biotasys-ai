@@ -41,7 +41,7 @@ async def test_pro_resilience_on_download_failure(service, respx_mock):
         await service.process_url_and_save(analysis_request)
 
     # 5. RIGOROUS ASSERTIONS
-    assert "Storage unavailable" in str(exc.value)
+    assert "Source file unreachable" in str(exc.value.details)
     
     # CRITICAL: Gemini AI MUST NOT be called if download fails (save tokens/money)
     service.ai.analyze_microbiota_document.assert_not_called()

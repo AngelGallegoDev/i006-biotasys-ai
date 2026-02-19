@@ -20,19 +20,52 @@ async def create_tables():
     logger.info("🚀 Attempting to create table 'microbiota_reports' via SQL gateway...")
 
     sql = """
+    -- 1. Companies Master Table
+    CREATE TABLE IF NOT EXISTS public.companies (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+
+    -- 2. Collaborators Master Table
+    CREATE TABLE IF NOT EXISTS public.collaborators (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        role TEXT,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+
+    -- 3. Update/Create Microbiota Reports Table
     CREATE TABLE IF NOT EXISTS public.microbiota_reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         study_code TEXT NOT NULL,
         patient_id TEXT NOT NULL,
-        user_id UUID,
+        user_id UUID REFERENCES public.collaborators(id) ON DELETE SET NULL,
+        company_id UUID REFERENCES public.companies(id) ON DELETE SET NULL,
         report_data JSONB NOT NULL,
         created_at TIMESTAMPTZ DEFAULT now()
     );
 
+    -- Enable RLS
+    ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.collaborators ENABLE ROW LEVEL SECURITY;
     ALTER TABLE public.microbiota_reports ENABLE ROW LEVEL SECURITY;
 
+    -- Basic development policies
     DO $$ 
     BEGIN
+        -- Companies Policy
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Enable all for development' AND tablename = 'companies') THEN
+            CREATE POLICY "Enable all for development" ON public.companies FOR ALL USING (true);
+        END IF;
+        
+        -- Collaborators Policy
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Enable all for development' AND tablename = 'collaborators') THEN
+            CREATE POLICY "Enable all for development" ON public.collaborators FOR ALL USING (true);
+        END IF;
+
+        -- Reports Policy
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Enable all for development' AND tablename = 'microbiota_reports') THEN
             CREATE POLICY "Enable all for development" ON public.microbiota_reports FOR ALL USING (true);
         END IF;
