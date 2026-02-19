@@ -37,5 +37,14 @@ class MicrobiotaReportFactory(ModelFactory[MicrobiotaReport]):
             TaxonomicAbundance(name="Actinobacteria", abundance=5.0)
         ]
         report.taxonomy.firmicutes_bacteroidetes_ratio = 2.0
+        report.taxonomy.other_phyla_abundance = 5.0
+        
+        report.metadata.sample_collection_method = "Toma directa con hisopo"
+        report.metadata.transport_conditions = "Refrigerado 4°C"
+        report.metadata.sample_status = "Aceptable"
+        
+        report.functionality.carbohydrate_metabolism = "Normal"
+        report.functionality.lipid_metabolism = "Aumentado"
+        report.functionality.vitamin_b_synthesis = "Reducido"
         
         return report

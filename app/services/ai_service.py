@@ -33,6 +33,7 @@ class AIService:
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.extractor_model = settings.extraction_model
         self.interpreter_model = settings.interpretation_model
+        print(f"DEBUG: Initializing AIService with extractor={self.extractor_model}, interpreter={self.interpreter_model}")
         logger.info(
             f"AI Service initialized. Ready for Extraction ({self.extractor_model}) and Interpretation ({self.interpreter_model})"
         )
@@ -54,7 +55,7 @@ class AIService:
                 "Eres un experto Bioinformático. Tu tarea es extraer datos de un informe de laboratorio de microbiota. "
                 "Genera una respuesta JSON que cumpla ESTRICTAMENTE con el esquema proporcionado. "
                 "No inventes datos. Si un campo no se encuentra, usa valores por defecto (0 para números, 'No disponible' para texto). "
-                "Asegúrate de extraer todas las abundancias taxonómicas mencionadas."
+                "Presta especial atención a: 1. Gestión de la muestra (método, transporte, estado), 2. Otros phyla, 3. Genes funcionales (PICRUSt)."
             )
 
             contents = [
@@ -109,12 +110,14 @@ class AIService:
             logger.info(f"Interpreting data using {self.interpreter_model}")
             
             system_instruction = (
-                "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota. "
-                "Genera un informe técnico jerárquico siguiendo el PRD de Biotasys. "
-                "Criterios: Analizar diversidad (índices específicos: shannon_index y simpson_index), balance taxonómico (F/B), "
-                "peligro de oportunistas y perfil metabólico. "
-                "No menciones datos que no aparezcan en el JSON técnico. "
-                "NO emitir diagnósticos médicos ni recomendaciones de tratamiento, solo observaciones técnicas."
+                "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota para generar INSIGHTS ESTRUCTURADOS. "
+                "No escribas bloques de texto vacíos. Usa los modelos: "
+                "1. DiversityDiagnosis: Evalúa Shannon/Simpson. Define si es 'Alta', 'Baja', 'Normal'. "
+                "2. EnterotypeClassification: Identifica si es Bacteroides, Prevotella o Ruminococcus. "
+                "3. MetabolicFunction: Infiere producción de Butirato, Propionato, Triptófano basándote en géneros clave (Roseburia, Faecalibacterium, etc). "
+                "4. ClinicalObservation: Genera alertas para Ratios F/B alterados o patógenos detectados. "
+                "NO inventes datos. Si no hay evidencia clara, usa 'Indeterminado'."
+                "NO emitas diagnósticos médicos ('Tiene Diabetes'), solo observaciones técnicas ('Asociado a resistencia a insulina')."
             )
 
             prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"

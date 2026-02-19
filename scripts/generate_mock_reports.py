@@ -34,6 +34,21 @@ def generate_realistic_report(output_path: str):
         ('TEXTCOLOR', (0,0), (0,-1), colors.darkgrey),
     ]))
     elements.append(t_header)
+    elements.append(Spacer(1, 0.2*inch))
+
+    # 1.1 Gestión de Muestra
+    elements.append(Paragraph("Gestión de la Muestra", ParagraphStyle(name='MiniTitle', fontSize=10, fontName="Helvetica-Bold")))
+    sample_data = [
+        ["Método de Recolección:", "Hisopado rectal / Materia Fecal"],
+        ["Condiciones de Transporte:", "Refrigerado (4°C)"],
+        ["Estado al recibir:", "Óptimo / Sellado"],
+    ]
+    t_sample = Table(sample_data, colWidths=[2.5*inch, 3*inch])
+    t_sample.setStyle(TableStyle([
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('TEXTCOLOR', (0,0), (0,-1), colors.grey),
+    ]))
+    elements.append(t_sample)
     elements.append(Spacer(1, 0.3*inch))
 
     # 2. Resumen de Diversidad
@@ -56,6 +71,7 @@ def generate_realistic_report(output_path: str):
         ["Filo", "Actinobacteria", f"{round(random.uniform(2, 10), 2)}%", "1-12%"],
         ["Filo", "Proteobacteria", f"{round(random.uniform(0.5, 5), 2)}%", "0.1-5%"],
         ["Filo", "Verrucomicrobia", f"{round(random.uniform(0.1, 3), 2)}%", "0-4%"],
+        ["Filo", "Otros", f"{round(random.uniform(1, 5), 2)}%", "< 5%"],
     ]
     taxa_data.extend(phyla)
     
@@ -80,6 +96,17 @@ def generate_realistic_report(output_path: str):
         ["Producción de Lipopolisacáridos (LPS)", "Baja (Deseable)"],
         ["Capacidad de degradación de moco", "Balanceada"],
     ]
+    elements.append(Paragraph("<b>Inferencia Funcional (PICRUSt2):</b>", styles['Normal']))
+    picrust_data = [
+        ["Metabolismo de Carbohidratos:", "Nivel Alto"],
+        ["Metabolismo de Lípidos:", "Nivel Normal"],
+        ["Síntesis de Vitaminas (Grupo B):", "Nivel Reducido"],
+    ]
+    for p_label, p_val in picrust_data:
+        elements.append(Paragraph(f"• {p_label} <font color='#3b82f6'>{p_val}</font>", styles['Normal']))
+    
+    elements.append(Spacer(1, 0.1*inch))
+    
     for fiber, status in func_data:
         color = "#10b981" if status in ["Óptima", "Normal", "Baja (Deseable)", "Balanceada"] else "#f59e0b"
         p_text = f"• <b>{fiber}:</b> <font color='{color}'>{status}</font>"
