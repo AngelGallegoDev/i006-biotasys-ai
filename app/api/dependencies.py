@@ -1,10 +1,10 @@
 """API dependencies and utilities."""
 
-from fastapi import HTTPException, status
-from typing import Optional
 
-from app.services.ai_service import ai_service
+from fastapi import HTTPException, status
+
 from app.core.logging import get_logger
+from app.services.ai_service import ai_service
 
 logger = get_logger(__name__)
 

@@ -1,40 +1,39 @@
-# Use Python 3.11 slim image for smaller size
-FROM python:3.11-slim
+# Use an official Python runtime as a parent image
+FROM python:3.12-slim
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 # Set work directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better Docker layer caching
-COPY requirements.txt ./
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Install dependencies using pip (more reliable for Docker builds)
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project configuration files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+# --frozen ensures we use the exact versions from uv.lock
+# --no-install-project avoids installing the package itself yet (just deps)
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy the rest of the application code
 COPY . .
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Install the project itself
+RUN uv sync --frozen --no-dev
 
 # Expose port
 EXPOSE 8000
 
-# Health check (updated to new API path)
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
-
-# Run the application using python directly
-CMD ["python", "main.py"]
+# Command to run the application
+# Use 'uv run' to execute in the virtual environment created by uv sync
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

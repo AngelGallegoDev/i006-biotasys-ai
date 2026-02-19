@@ -1,122 +1,170 @@
-"""AI service for OpenRouter integration."""
+"""AI service for Gemini integration using the modern google-genai SDK."""
 
-import httpx
-import uuid
-from datetime import datetime
-from typing import List, Dict, Any, Optional
+from google import genai
+from google.genai import types
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from app.config.settings import settings
-from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
 from app.core.logging import get_logger
-from app.core.security import mask_api_key
+from app.core.exceptions import AIError
+from app.models.schemas import (
+    MicrobiotaReport,
+    MicrobiotaInterpretation,
+)
 
 logger = get_logger(__name__)
 
 
 class AIService:
-    """Service for interacting with OpenRouter API."""
-    
+    """
+    Service for interacting with Google Gemini API.
+    Biotasys Dual Engine:
+    - Extraction: Gemini 2.5 Flash Lite
+    - Interpretation: Gemini 3 Pro
+    """
+
     def __init__(self):
-        """Initialize the AI service."""
-        self.client = httpx.AsyncClient(
-            base_url=settings.openrouter_base_url,
-            headers={
-                "Authorization": f"Bearer {settings.openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/your-username/template-python-fastapi",
-                "X-Title": settings.app_name,
-            },
-            timeout=60.0
+        """Initialize the Gemini AI service."""
+        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.extractor_model = settings.extraction_model
+        self.interpreter_model = settings.interpretation_model
+        print(f"DEBUG: Initializing AIService with extractor={self.extractor_model}, interpreter={self.interpreter_model}")
+        logger.info(
+            f"AI Service initialized. Ready for Extraction ({self.extractor_model}) and Interpretation ({self.interpreter_model})"
         )
-        logger.info(f"AI Service initialized with API key: {mask_api_key(settings.openrouter_api_key)}")
-    
-    async def chat_completion(self, request: ChatRequest) -> ChatResponse:
-        """Create a chat completion using OpenRouter API."""
-        
-        # Convert ChatMessage objects to dict format
-        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-        
-        payload = {
-            "model": request.model,
-            "messages": messages,
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
-            "stream": request.stream,
-        }
-        
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception),
+        reraise=True
+    )
+    async def analyze_microbiota_document(self, file_bytes: bytes, mime_type: str) -> MicrobiotaReport:
+        """
+        Extract structured data from report (PDF/Image) using the high-speed extractor.
+        """
         try:
-            logger.info(f"Sending chat completion request for model: {request.model}")
-            response = await self.client.post("/chat/completions", json=payload)
-            response.raise_for_status()
+            logger.info(f"Extracting technical data using {self.extractor_model}")
             
-            data = response.json()
-            
-            chat_response = ChatResponse(
-                id=data.get("id", str(uuid.uuid4())),
-                created=data.get("created", int(datetime.now().timestamp())),
-                model=data.get("model", request.model),
-                choices=data.get("choices", []),
-                usage=data.get("usage")
+            system_instruction = (
+                "Eres un experto Bioinformático. Tu tarea es extraer datos de un informe de laboratorio de microbiota. "
+                "Genera una respuesta JSON que cumpla ESTRICTAMENTE con el esquema proporcionado. "
+                "No inventes datos. Si un campo no se encuentra, usa valores por defecto (0 para números, 'No disponible' para texto). "
+                "PRESTA ESPECIAL ATENCIÓN A: "
+                "1. Gestión de la muestra (método, transporte, estado). "
+                "2. Otros phyla (calcula la abundancia acumulada de filos no listados). "
+                "3. Ratio Firmicutes/Bacteroidetes: Si el ratio no aparece explícitamente pero tienes las abundancias de ambos filos, CALCÚLALO (Firmicutes / Bacteroidetes). "
+                "4. Genes funcionales (PICRUSt)."
+            )
+
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
+                        types.Part.from_text(text="Analiza este documento y extrae la información técnica en formato JSON.")
+                    ]
+                )
+            ]
+
+            response = await self.client.aio.models.generate_content(
+                model=self.extractor_model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaReport,
+                    temperature=0.1,
+                ),
             )
             
-            logger.info(f"Chat completion successful: {chat_response.id}")
-            return chat_response
-            
-        except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
+            if not response.parsed:
+                # Log what we actually got
+                raw_text = getattr(response, 'text', "No text field available")
+                logger.error(f"Extraction failed to parse into schema. Raw output might be: {raw_text[:500]}")
+                raise AIError("Extraction failed: Output did not match technical schema. Please check the document format.")
+
+            return response.parsed
+
         except Exception as e:
-            error_msg = f"Error calling OpenRouter API: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
-    async def list_models(self) -> List[ModelInfo]:
-        """List available models from OpenRouter."""
+            logger.error(f"Extraction error: {str(e)}")
+            if isinstance(e, AIError):
+                raise e
+            raise AIError("Gemini Extraction Engine failed", details=str(e))
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception),
+        reraise=True
+    )
+    async def interpret_microbiota_data(self, data: MicrobiotaReport) -> MicrobiotaInterpretation:
+        """
+        Generate advanced clinical reasoning using the powerful Gemini 3 Pro interpreter.
+        """
+        if not data:
+            raise AIError("Interpretation failed: Input data is null")
+
         try:
-            logger.info("Fetching available models from OpenRouter")
-            response = await self.client.get("/models")
-            response.raise_for_status()
+            logger.info(f"Interpreting data using {self.interpreter_model}")
             
-            data = response.json()
-            models_data = data.get("data", [])
-            
-            models = [
-                ModelInfo(
-                    id=model.get("id", ""),
-                    name=model.get("name"),
-                    description=model.get("description"),
-                    pricing=model.get("pricing")
-                )
-                for model in models_data
-            ]
-            
-            logger.info(f"Retrieved {len(models)} models")
-            return models
-            
-        except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
+            system_instruction = (
+                "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota para generar INSIGHTS ESTRUCTURADOS y ACCIONABLES. "
+                "CRÍTICO: Toda la respuesta (explicaciones, recomendaciones) debe ser en un Español profesional, neutro y empático. "
+                "Usa los nuevos modelos definidos: "
+                "1. GutHealthScore: Calcula un puntaje de 0-100. 100=Perfecto. Resta puntos por disbiosis, patógenos o baja diversidad. "
+                "   - 'label': Excelente (>90), Bueno (>70), Regular (>50), Pobre (<50). "
+                "   - 'breakdown': Explica brevemente por qué se restaron puntos. "
+                "2. DietaryRecommendation: Genera 3-5 recomendaciones ESPECÍFICAS basadas en los hallazgos. "
+                "   - Si falta Butirato -> Recomendar almidón resistente (papa fría, plátano verde). "
+                "   - Si hay inflamación -> Recomendar Omega-3, Cúrcuma. "
+                "   - Usa 'action': 'Aumentar', 'Reducir' o 'Evitar'. "
+                "3. SupplementSuggestion: Sugiere probióticos/prebióticos solo si hay evidencia de déficit. "
+                "   - Ej: 'Lactobacillus rhamnosus' si hay permeabilidad intestinal. "
+                "4. DiversityDiagnosis y EnterotypeClassification: Mantén el rigor técnico previo. "
+                "NO inventes datos. Si no hay evidencia clara para una recomendación, no la hagas."
+            )
+
+            prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"
+
+            response = await self.client.aio.models.generate_content(
+                model=self.interpreter_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaInterpretation,
+                    temperature=0.7,
+                ),
+            )
+
+            if not response.parsed:
+                raise AIError("Interpretation failed: Gemini returned null parsed data.")
+
+            return response.parsed
+
         except Exception as e:
-            error_msg = f"Error fetching models: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-    
+            logger.error(f"Interpretation error: {str(e)}")
+            if isinstance(e, AIError):
+                raise e
+            raise AIError("Gemini Interpretation Engine failed", details=str(e))
+
     async def health_check(self) -> bool:
-        """Check if the AI service is healthy."""
+        """Check if the Gemini service is reachable."""
         try:
-            # Try to fetch models as a simple health check
-            await self.list_models()
+            await self.client.aio.models.get(model=self.extractor_model)
             return True
-        except Exception as e:
-            logger.error(f"AI service health check failed: {str(e)}")
+        except Exception:
             return False
-    
+
     async def close(self):
-        """Close the HTTP client."""
-        await self.client.aclose()
-        logger.info("AI service client closed")
+        """Logging shutdown."""
+        logger.info("Gemini service client shutdown")
 
 
 # Global AI service instance

@@ -140,3 +140,9 @@ celerybeat.pid
 *.bak
 *.backup
 *.old
+
+# MCP (Model Context Protocol)
+mcp_config_local.json
+mcp_config_new.json
+mcp_config.json
+sandbox_ui/
