@@ -1,75 +1,46 @@
-# 🐳 Guía de Docker para Biotasys AI
+# Biotasys AI - Guía de Inicio Rápido con UV 🚀
 
-Esta guía detalla cómo operar el entorno de desarrollo local utilizando Docker. \
-El proyecto está configurado para usar **Python 3.12** y **uv** para una gestión de dependencias ultrarrápida.
+Esta guía explica cómo configurar y arrancar el backend utilizando `uv`, el gestor de paquetes de Python ultra rápido.
 
-## 🚀 Comandos Rápidos
+## 1. Instalación de UV
+Si no tienes `uv` instalado, ejecuta este comando en PowerShell:
+```powershell
 
-### 1. Iniciar el Entorno (Development Mode)
-Levanta la aplicación en modo desarrollo con **Hot Reloading** activado.
-Cualquier cambio en el código fuente se reflejará inmediatamente.
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-```bash
-docker compose up
+```
+*Nota: Reinicia la terminal después de la instalación.*
+
+## 2. Configuración del Entorno
+Si es la primera vez o si ves errores del tipo "invalid Python environment", limpia y sincroniza:
+
+```powershell
+# 1. Eliminar venv corrupto (si existe)
+rm -r -Force .venv
+
+# 2. Sincronizar dependencias (y descargar Python 3.12 si falta)
+uv sync
+
+# 3. Configurar variables de entorno
+cp env.example .env
 ```
 
-La API estará disponible en:
-- **API:** [http://localhost:8000](http://localhost:8000)
-- **Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health:** [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-
----
-
-### 2. Reconstruir (Nuevas Dependencias)
-Si agregas paquetes al `pyproject.toml` o `uv.lock`, debes reconstruir la imagen para que `uv` sincronice las nuevas librerías.
-
-```bash
-docker compose up --build
+## 3. Ejecución del Servidor
+Para desarrollo con recarga automática:
+```powershell
+uv run uvicorn main:app --reload --port 8000
 ```
 
----
-
-### 3. Ver Logs en Tiempo Real
-Si corriste el contenedor en segundo plano (`-d`), usa este comando para seguir los logs.
-
-```bash
-docker compose logs -f app
+Para ejecutar vía script directo:
+```powershell
+uv run python main.py
 ```
 
----
+## 4. Tests y Calidad
+```powershell
+# Ejecutar tests
+uv run pytest
 
-### 4. Detener el Entorno
-Detiene y remueve los contenedores.
-
-```bash
-docker compose down
+# Formatear código
+uv run ruff format .
 ```
-
----
-
-### 5. Acceder al Contenedor (Shell)
-Para ejecutar comandos dentro del entorno aislado (ej. scripts de prueba manual).
-
-```bash
-docker compose exec app bash
-```
-
----
-
-## 🛠️ Notas Técnicas
-
-- **Gestor de Paquetes:** Usamos `uv` en lugar de `pip` por velocidad y determinismo.
-- **Volúmenes:**
-  - `.:/app`: Monta tu código local dentro del contenedor (permite editar desde VS Code y ver cambios al instante).
-  - `/app/.venv`: Volumen anónimo para aislar las librerías de Linux (Docker) de las de Windows (Host). **Nunca elimines esto manualmente** a menos que quieras reinstalar todo desde cero.
-- **Puertos:** El servicio corre internamente en el `8000` y expone el `8000` en tu localhost.
-
-## ⚠️ Solución de Problemas
-
-**Error: "Address already in use"**
-Si el puerto 8000 está ocupado:
-1. Identifica el proceso: `netstat -ano | findstr :8000` (Windows) o `lsof -i :8000` (Linux/Mac).
-2. Mátalo o cambia el puerto en `docker-compose.yml`.
-
-**Error de Permisos en Scripts**
-Si tienes problemas ejecutando scripts, asegúrate de que tengan permisos de ejecución o lánzalos con `python script.py`.

@@ -52,8 +52,8 @@ ehthumbs.db
 Thumbs.db
 
 # Documentation
-README.md
-*.md
+# (We keep README.md because hatchling/uv needs it for metadata)
+# *.md
 
 # Tests
 tests/
