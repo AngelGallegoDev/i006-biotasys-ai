@@ -51,10 +51,6 @@ env/
 ehthumbs.db
 Thumbs.db
 
-# Documentation
-README.md
-*.md
-
 # Tests
 tests/
 test_*
