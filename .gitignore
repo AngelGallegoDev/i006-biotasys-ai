@@ -145,4 +145,4 @@ celerybeat.pid
 mcp_config_local.json
 mcp_config_new.json
 mcp_config.json
-sandbox_ui/
+sandbox_ui/config.js
