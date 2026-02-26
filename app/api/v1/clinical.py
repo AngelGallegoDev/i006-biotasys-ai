@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Security
 from typing import Any
 
-from app.models.schemas import AnalysisRequest, ErrorResponse
+from app.models.schemas import AnalysisRequest, DirectAnalysisRequest, ErrorResponse
 from app.services.report_service import ReportService, report_service
 from app.core.logging import get_logger
 from app.core.exceptions import ResourceNotFoundError
@@ -21,6 +21,7 @@ router = APIRouter(
 
 @router.post(
     "/process-report",
+    deprecated=True, # Punto de entrada original para el análisis de archivos PDF.
     response_model=dict[str, Any],
     responses={
         422: {"model": ErrorResponse},
@@ -43,6 +44,32 @@ async def process_microbiota_document(
         return result
     except Exception as e:
         logger.error(f"Engine failure for doc {request.documento_id}: {str(e)}")
+        raise e
+    
+@router.post(
+    "/process-report-json",
+    response_model=dict[str, Any],
+    responses={
+        422: {"model": ErrorResponse},
+        401: {"model": ErrorResponse}, # Unauthorized
+        403: {"model": ErrorResponse}, # Forbidden
+        500: {"model": ErrorResponse},
+    },
+)
+async def process_microbiota_json(
+    request: DirectAnalysisRequest,
+    service: ReportService = Depends(lambda: report_service)
+):
+    """
+    Punto de entrada directo a través de JSON para Backend A.
+    Protected: Requires X-API-KEY header from a Certified Entity.
+    """
+    try:
+        logger.info(f"Certified JSON request for document: {request.documento_id}")
+        result = await service.process_json_and_save(request)
+        return result
+    except Exception as e:
+        logger.error(f"JSON engine failure for doc {request.documento_id}: {str(e)}")
         raise e
 
 

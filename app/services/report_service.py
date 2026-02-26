@@ -4,7 +4,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
-from app.models.schemas import AnalysisRequest, MicrobiotaReport
+from app.models.schemas import AnalysisRequest, DirectAnalysisRequest, MicrobiotaReport
 from app.repositories.report_repository import ReportRepository
 from app.services.ai_service import AIService, ai_service
 
@@ -70,6 +70,40 @@ class ReportService:
             }
         except Exception as e:
             logger.error(f"Engine pipeline failed: {str(e)}")
+            # If it's already a BiotasysException, let it bubble up to the controller
+            raise e
+        
+    async def process_json_and_save(self, request: DirectAnalysisRequest) -> dict[str, Any]:
+        """
+        Biotasys JSON Input pipeline:
+        Interpretación directa con Gemini 3 Pro para obtener el análisis clínico.
+        """
+        try:
+            logger.info(f"🚀 Processing JSON input for: {request.documento_id}")
+            
+            # STEP 1: Use provided report data directly
+            report = request.input_data
+            
+            # STEP 2: Expert Interpretation (Gemini 3 Pro)
+            interpretation = await self.ai.interpret_microbiota_data(report)
+            
+            # Join the data
+            report.interpretation = interpretation
+            report.engine_version = "Gemini 3 Pro"
+            
+            # STEP 3: Persistence with Metadata
+            saved_report = await self.repository.save_report(report, request)
+            
+            logger.info(f"✨ JSON analysis completed and persisted for {request.documento_id}")
+            
+            return {
+                "engine_status": "success",
+                "report_id": saved_report.get("id"),
+                "documento_id_origen": request.documento_id,
+                "data": report
+            }
+        except Exception as e:
+            logger.error(f"JSON pipeline failed: {str(e)}")
             # If it's already a BiotasysException, let it bubble up to the controller
             raise e
 
