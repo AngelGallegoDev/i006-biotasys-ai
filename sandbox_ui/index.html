@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biotasys Sandbox | QA Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark-mode">
+    <div id="app">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <span class="biota">BIOTA</span><span class="sys">SYS</span>
+            </div>
+            <nav class="side-nav">
+                <button id="nav-btn-1" class="active" onclick="showPage('page1')">
+                    <i data-lucide="edit-3"></i> <span>01. Ingesta (POST)</span>
+                </button>
+                <button id="nav-btn-2" onclick="showPage('page2')">
+                    <i data-lucide="microscope"></i> <span>02. Resultados</span>
+                </button>
+            </nav>
+            <div class="version-tag">v1.2.5 Dual Engine</div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- PAGE 1: SIMULADOR DE ENVÍO -->
+            <section id="page1" class="page active">
+                <header class="page-header">
+                    <h1>Simulador de Backend A</h1>
+                    <p>Enviando datos crudos al motor Biotasys.</p>
+                </header>
+
+                <div class="simulator-layout">
+                    <!-- Form Side -->
+                    <div class="form-side">
+                        <div class="glass-card">
+                            <h3 class="section-title"><i data-lucide="database"></i> Datos que envía el Backend A</h3>
+
+                            <div class="input-group">
+                                <label>Archivo del Informe (PDF/Imagen)</label>
+                                <div class="file-drop-zone" id="drop-zone">
+                                    <input type="file" id="report_file" accept=".pdf,image/*"
+                                        onchange="handleFileSelect()">
+                                    <div class="drop-ui">
+                                        <i data-lucide="upload-cloud"></i>
+                                        <span id="file-label">Seleccionar archivo para subir al Storage</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid-2">
+                                <div class="input-group">
+                                    <label>Empresa ID</label>
+                                    <input type="text" id="empresa_id" value="CLINICA_SIMULADA_A">
+                                </div>
+                                <div class="input-group">
+                                    <label>Doctor ID</label>
+                                    <input type="text" id="doctor_id" value="DR_REVISOR_01">
+                                </div>
+                                <div class="input-group">
+                                    <label>Documento ID</label>
+                                    <input type="text" id="documento_id" value="REF-2026-X">
+                                </div>
+                            </div>
+
+                            <button id="main-action-btn" class="glow-button" onclick="executePipeline()">
+                                <span>Subir y Procesar Informe</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Logs Side -->
+                    <div class="logs-side glass-card">
+                        <h3 class="section-title"><i data-lucide="terminal"></i> Eventos del Engine</h3>
+                        <div id="terminal" class="terminal-body">
+                            <span class="log-info">> Sistema listo para simulación...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGE 2: DASHBOARD DE RESULTADOS -->
+            <section id="page2" class="page">
+                <header class="page-header">
+                    <div class="flex-between">
+                        <div>
+                            <h1>Visualizador Biotasys IQ</h1>
+                            <p>Resultados del análisis clínico generado por Gemini 3 Pro.</p>
+                        </div>
+                        <div class="id-search-box">
+                            <input type="text" id="search-report-id" placeholder="Pegar Report ID...">
+                            <button class="icon-btn" onclick="fetchHistory()"><i data-lucide="search"></i></button>
+                        </div>
+                    </div>
+                </header>
+
+                <div id="no-data" class="empty-dashboard">
+                    <i data-lucide="microscope"></i>
+                    <h2>Sin resultados para mostrar</h2>
+                    <p>Envía un reporte desde la <b>Page 01</b> para verlo aquí.</p>
+                </div>
+
+                <div id="report-content" class="report-content hidden">
+                    <!-- Technical Interpretation Banner -->
+                    <div class="interpretation-banner glass-card">
+                        <div class="banner-icon"><i data-lucide="sparkles"></i></div>
+                        <div class="banner-text">
+                            <h3>Conclusiones de Gemini 3 Pro</h3>
+                            <p id="res-summary">Cargando...</p>
+                        </div>
+                    </div>
+
+                    <!-- Hierarchy Metadata -->
+                    <div id="report-metadata" class="hierarchy-metadata mb-2">
+                        <!-- Injected via JS -->
+                    </div>
+
+                    <!-- NEW: Health Score Section -->
+                    <div id="res-score" class="score-container glass-card mb-2">
+                        <!-- Score injected via JS -->
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <!-- Diversity -->
+                        <div class="glass-card stat-card">
+                            <div class="stat-header">
+                                <i data-lucide="grid"></i> Indices de Diversidad
+                            </div>
+                            <div class="stat-grid">
+                                <div class="v-stat">
+                                    <span class="v-label">Shannon</span>
+                                    <span class="v-value" id="res-shannon">--</span>
+                                </div>
+                                <div class="v-stat">
+                                    <span class="v-label">Simpson</span>
+                                    <span class="v-value" id="res-simpson">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- F/B Ratio -->
+                        <div class="glass-card stat-card">
+                            <div class="stat-header">
+                                <i data-lucide="dna"></i> Balance Taxonómico (F/B)
+                            </div>
+                            <div class="fb-ring">
+                                <div class="fb-number" id="res-fb">--</div>
+                                <span class="v-label">Ratio Firmicutes/Bacteroidetes</span>
+                            </div>
+                        </div>
+
+                        <!-- Alerts -->
+                        <div class="glass-card col-span-2">
+                            <h3><i data-lucide="alert-circle"></i> Hallazgos y Observaciones</h3>
+                            <div id="res-alerts" class="alerts-container">
+                                <!-- Alerts injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Metabolic Map -->
+                        <div class="glass-card col-span-2">
+                            <h3><i data-lucide="activity"></i> Perfil Metabólico Inferido</h3>
+                            <div id="res-metabolic" class="metabolic-grid">
+                                <!-- Metabolic injected here -->
+                            </div>
+                        </div>
+
+                        <!-- NEW: Action Plan -->
+                        <div class="glass-card col-span-2">
+                            <h3><i data-lucide="utensils"></i> Recomendaciones Nutricionales</h3>
+                            <div id="res-diet" class="diet-grid">
+                                <!-- Diet injected here -->
+                            </div>
+                        </div>
+
+                        <div class="glass-card col-span-2">
+                            <h3><i data-lucide="pill"></i> Suplementación Sugerida</h3>
+                            <div id="res-supplements" class="diet-grid">
+                                <!-- Supplements injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+
+</html>
