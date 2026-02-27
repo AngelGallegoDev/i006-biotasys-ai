@@ -3,96 +3,72 @@
 import uuid
 import asyncio
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Optional, TypedDict, cast
 
 from app.core.logging import get_logger
-from app.core.exceptions import DatabaseError
+from app.core.exceptions import DatabaseError, ValidationError
 from app.models.schemas import AnalysisRequest, MicrobiotaReport
 from app.repositories.base import BaseRepository
 
 logger = get_logger(__name__)
 
+# TypedDict para tipado estricto de respuestas
+class ReportDict(TypedDict):
+    id: str
+    report_data: dict[str, Any]
+    created_at: str
+    patient_id: str
+    company_id: Optional[str]
+    user_id: str
+    study_code: str
 
 class ReportRepository(BaseRepository):
     """Repository for managing analyzed microbiota reports in Supabase."""
 
-    async def save_report(self, report: MicrobiotaReport, metadata: AnalysisRequest | None = None) -> dict[str, Any]:
-        """
-        Saves a structured microbiota report linking it to the source document and hierarchy.
-        Maps Backend A metadata to existing Supabase columns with UUID safety.
-        """
-        def ensure_uuid(val: str) -> str:
-            try:
-                return str(uuid.UUID(val))
-            except (ValueError, AttributeError):
-                # Generate a deterministic UUID if it's just a string like "DR_REVISOR_01"
-                return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(val)))
+    async def save_report(
+        self, 
+        report: MicrobiotaReport, 
+        metadata: Optional[AnalysisRequest] = None
+    ) -> ReportDict:
+        # NUEVA: Validación de entrada
+        if not report.metadata or report.metadata.patient_id == "No disponible":
+            raise ValidationError("Patient ID requerido para persistir informe")
 
-        async def upsert_entity(table: str, entity_id: str, default_name: str, extra_data: dict | None = None) -> str:
-            """Ensures an entity exists in the master table using an atomic upsert."""
-            safe_id = ensure_uuid(entity_id)
-            
-            # Prepare data for upsert
-            data = {"id": safe_id, "name": default_name}
-            if extra_data:
-                data.update(extra_data)
-                
-            try:
-                # We use upsert to handle existance and creation in one go
-                await asyncio.to_thread(
-                    lambda: self.client.table(table).upsert(data, on_conflict="id").execute()
-                )
-                logger.info(f"Master entity synchronized in {table}: {default_name} ({safe_id})")
-                return safe_id
-            except Exception as e:
-                logger.error(f"Critical failure upserting entity in {table}: {str(e)}")
-                # Re-raise to prevent foreign key violations downstream
-                raise DatabaseError(f"Master data synchronization failed for {table}", details=str(e))
+        report_id = str(uuid.uuid4())
+        patient_id = self._ensure_uuid(report.metadata.patient_id)
 
         try:
-            report_id = str(uuid.uuid4())
-            
-            # Extract basic data
-            raw_patient_id = report.metadata.patient_id if report.metadata else "Unknown"
-            
-            # 1. Handle Hierarchy (Company & Collaborator)
+            # PASO 1: Jerarquía (modularizado)
             final_company_id = None
-            final_user_id = ensure_uuid("SYSTEM-INTERNAL")
+            final_user_id = self._ensure_uuid("SYSTEM-INTERNAL")  # Default fallback
 
             if metadata:
-                # Ensure Company exists
-                final_company_id = await upsert_entity(
-                    "companies", 
-                    metadata.empresa_id, 
-                    f"Empresa {metadata.empresa_id[:8]}"
-                )
-                
-                # Ensure Collaborator exists and is linked
-                final_user_id = await upsert_entity(
-                    "collaborators", 
-                    metadata.doctor_id, 
-                    f"Dr. {metadata.doctor_id[:8]}",
-                    {"company_id": final_company_id}
-                )
+                final_company_id = await self._ensure_company(metadata.empresa_id, metadata)
+                final_user_id = await self._ensure_collaborator(metadata.doctor_id, final_company_id)
 
-            data = {
+            # PASO 2: Preparar datos del informe
+            data: dict[str, Any] = {
                 "id": report_id,
                 "report_data": report.model_dump(mode="json"),
                 "created_at": datetime.now(UTC).isoformat(),
-                "patient_id": ensure_uuid(raw_patient_id),
+                "patient_id": patient_id,
                 "company_id": final_company_id,
                 "user_id": final_user_id,
-                "study_code": metadata.documento_id if metadata else (report.metadata.study_code if report.metadata else f"REF-{report_id[:8]}")
+                "study_code": metadata.documento_id if metadata else report.metadata.study_code
             }
 
+            # PASO 3: Insertar informe
             result = await asyncio.to_thread(
                 lambda: self.client.table("microbiota_reports").insert(data).execute()
             )
-            logger.info(f"Report saved with Hierarchy [Co: {final_company_id} | Usr: {final_user_id}]")
-            return result.data[0] if result.data else {}
+
+            logger.info(f"✅ Informe guardado [{report_id[:8]}] Co:{final_company_id} Usr:{final_user_id}")
+            return cast(ReportDict, result.data[0]) if result.data else {}
+
         except Exception as e:
-            logger.error(f"Persistence Failure (Hierarchy): {str(e)}")
-            raise DatabaseError("Failed to save report hierarchy in Supabase", details=str(e))
+            logger.error(f"❌ Error guardando informe {report_id}: {str(e)}")
+            raise DatabaseError("Error persistiendo informe", details=str(e)) from e
+
 
     async def get_reports_by_patient(self, patient_id: str) -> list[dict[str, Any]]:
         """Retrieves history of reports for a specific patient."""
