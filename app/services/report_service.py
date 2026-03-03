@@ -4,7 +4,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
-from app.models.schemas import AnalysisRequest, DirectAnalysisRequest, MicrobiotaReport
+from app.models.schemas import AnalysisReport, AnalysisRequest, MicrobiotaInput, MicrobiotaReport
 from app.repositories.report_repository import ReportRepository
 from app.services.ai_service import AIService, ai_service
 
@@ -72,36 +72,40 @@ class ReportService:
             logger.error(f"Engine pipeline failed: {str(e)}")
             # If it's already a BiotasysException, let it bubble up to the controller
             raise e
-        
-    async def process_json_and_save(self, request: DirectAnalysisRequest) -> dict[str, Any]:
+
+    
+    async def process_json_and_save(self, raw_json: dict[str, Any]) -> AnalysisReport: 
+        # Falta añadir como parámeto JsonAnalysisRequest cuando tengamos claros los datos que nos envían.    
         """
         Biotasys JSON Input pipeline:
         Interpretación directa con Gemini 3 Pro para obtener el análisis clínico.
         """
         try:
-            logger.info(f"🚀 Processing JSON input for: {request.documento_id}")
+            logger.info("Processing JSON raw input")
             
-            # STEP 1: Use provided report data directly
-            report = request.input_data
+            # STEP 1: Normalize input_data into DirectAnalysisRequest (if not already)            
+            try:
+                microbiota_data = MicrobiotaInput.model_validate(raw_json)
+                logger.info("Input data validated as MicrobiotaInput structure")
+            except Exception as e:
+                logger.info(f"Input data is unstructured or has field mismatches. Normalizing via AI")
+                microbiota_data = await self.ai.analyze_laboratory_json(raw_json)
             
             # STEP 2: Expert Interpretation (Gemini 3 Pro)
-            interpretation = await self.ai.interpret_microbiota_data(report)
+            interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
             
-            # Join the data
-            report.interpretation = interpretation
-            report.engine_version = "Gemini 3 Pro"
-            
+            # Todavía no están definidos los datos exactos que guardaremos en la base de datos"
+            """ 
             # STEP 3: Persistence with Metadata
             saved_report = await self.repository.save_report(report, request)
             
-            logger.info(f"✨ JSON analysis completed and persisted for {request.documento_id}")
-            
-            return {
-                "engine_status": "success",
-                "report_id": saved_report.get("id"),
-                "documento_id_origen": request.documento_id,
-                "data": report
-            }
+            logger.info(f"JSON analysis completed and persisted for {request.documento_id}")
+            """
+            return AnalysisReport(
+                data = microbiota_data,
+                interpretation = interpretation
+            )
+        
         except Exception as e:
             logger.error(f"JSON pipeline failed: {str(e)}")
             # If it's already a BiotasysException, let it bubble up to the controller

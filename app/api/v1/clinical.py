@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Security
 from typing import Any
 
-from app.models.schemas import AnalysisRequest, DirectAnalysisRequest, ErrorResponse
+from app.models.schemas import AnalysisReport, AnalysisRequest, ErrorResponse
 from app.services.report_service import ReportService, report_service
 from app.core.logging import get_logger
 from app.core.exceptions import ResourceNotFoundError
@@ -48,7 +48,7 @@ async def process_microbiota_document(
     
 @router.post(
     "/process-report-json",
-    response_model=dict[str, Any],
+    response_model=AnalysisReport,
     responses={
         422: {"model": ErrorResponse},
         401: {"model": ErrorResponse}, # Unauthorized
@@ -57,7 +57,7 @@ async def process_microbiota_document(
     },
 )
 async def process_microbiota_json(
-    request: DirectAnalysisRequest,
+    raw_json: dict[str, Any],
     service: ReportService = Depends(lambda: report_service)
 ):
     """
@@ -65,11 +65,11 @@ async def process_microbiota_json(
     Protected: Requires X-API-KEY header from a Certified Entity.
     """
     try:
-        logger.info(f"Certified JSON request for document: {request.documento_id}")
-        result = await service.process_json_and_save(request)
+        logger.info(f"Certified JSON request for raw json data")
+        result = await service.process_json_and_save(raw_json)
         return result
     except Exception as e:
-        logger.error(f"JSON engine failure for doc {request.documento_id}: {str(e)}")
+        logger.error(f"JSON engine failure for raw json data: {str(e)}")
         raise e
 
 
