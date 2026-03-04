@@ -277,7 +277,7 @@ class MicrobiotaReport(BaseModel):
     taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
     functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
     clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
-    # interpretation: MicrobiotaInterpretation | None = None
+    interpretation: MicrobiotaInterpretation | None = None
     engine_version: str = Field(default="1.2.5")
     processed_at: datetime = Field(default_factory=datetime.now)
 
