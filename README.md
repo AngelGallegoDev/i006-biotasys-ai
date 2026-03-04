@@ -1,10 +1,10 @@
-# Biotasys AI - Microbiota Analysis Engine 
+# Biotasys AI - Microbiota Analysis Engine 🧬🤖
 
 **Biotasys Engine** es un núcleo de procesamiento clínico avanzado diseñado para la extracción e interpretación técnica de informes de microbiota. Utiliza una arquitectura de **Dual Engine** sobre Google Gemini para transformar datos no estructurados (PDF/Imágenes) en informes bioinformáticos de alta precisión.
 
 ---
 
-##  Arquitectura Dual Engine
+## 🚀 Arquitectura Dual Engine
 
 El sistema orquestado en `AIService` utiliza dos modelos especializados para maximizar la velocidad y la profundidad analítica:
 
@@ -13,7 +13,7 @@ El sistema orquestado en `AIService` utiliza dos modelos especializados para max
 
 ---
 
-##  Tech Stack & Rigor Técnico
+## 🛠️ Tech Stack & Rigor Técnico
 
 *   **Backend:** FastAPI (Python 3.11+) - Async-first architecture.
 *   **AI SDK:** `google-genai` (Modern SDK integration).
@@ -24,7 +24,7 @@ El sistema orquestado en `AIService` utiliza dos modelos especializados para max
 
 ---
 
-##  Estructura del Proyecto (Clean Architecture)
+## 📦 Estructura del Proyecto (Clean Architecture)
 
 ```text
 app/
@@ -42,7 +42,7 @@ tests/
 
 ---
 
-##  Protocolo de Resiliencia y Errores
+## 🛡️ Protocolo de Resiliencia y Errores
 
 El motor implementa una jerarquía de excepciones propia (**BiotasysException**) para garantizar que el Frontend reciba diagnósticos claros:
 
@@ -53,7 +53,7 @@ El motor implementa una jerarquía de excepciones propia (**BiotasysException**)
 
 ---
 
-##  Quick Start
+## 🚦 Quick Start
 
 ### 1. Variables de Entorno
 Crea un archivo `.env` basado en `env.example`:
@@ -85,7 +85,7 @@ pytest --cov=app tests/
 
 ---
 
-##  API Endpoints Principales
+## 📄 API Endpoints Principales
 
 *   `POST /api/v1/clinical/process-report`: Orquestación completa (Descarga -> Extracción -> Interpretación -> Guardado).
 *   `GET /api/v1/clinical/report/{id}`: Recuperación de informes procesados.
@@ -93,7 +93,7 @@ pytest --cov=app tests/
 
 ---
 
-##  Mandatos de Desarrollo (The Purge)
+## ⚠️ Mandatos de Desarrollo (The Purge)
 
 1.  **Async-First:** Prohibido código bloqueante en la capa de servicios.
 2.  **KISS:** No añadir complejidad innecesaria (ej. capas de "Chat" genéricas).
