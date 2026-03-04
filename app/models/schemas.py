@@ -252,6 +252,30 @@ class EnterotypeClassification(BaseModel):
     )
     description: str = Field(..., description="Characteristics of this enterotype")
 
+class MicrobiotaInput(BaseModel):
+    """Esquema normalizado de los datos de microbiota"""
+
+    metadata: StudyMetadata = Field(default_factory=StudyMetadata)
+    sequencing: SequencingData = Field(default_factory=SequencingData)
+    diversity: DiversityIndices = Field(default_factory=DiversityIndices)
+    taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
+    functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
+    clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
+
+class MicrobiotaInterpretation(BaseModel):
+    """Esquema de análisis clínico de los datos microbiota realizado por la IA"""
+
+    summary: str = Field(..., description="Executive summary of the microbiota status")
+    gut_health_score: GutHealthScore
+    diversity_diagnosis: DiversityDiagnosis
+    enterotype_analysis: EnterotypeClassification
+    taxonomic_balance: list[ClinicalObservation] = Field(default_factory=list)
+    metabolic_potential: list[MetabolicFunction] = Field(default_factory=list)
+    opportunistic_risk: list[ClinicalObservation] = Field(default_factory=list)
+    dietary_recommendations: list[DietaryRecommendation] = Field(default_factory=list)
+    supplement_suggestions: list[SupplementSuggestion] = Field(default_factory=list)
+    final_technical_notes: str
+
 class MicrobiotaReport(BaseModel):
     """Full structured microbiota report."""
 
@@ -278,30 +302,6 @@ class JsonAnalysisRequest(BaseModel):
     """Esquema de petición de análisis de Backend Nest"""
 
     raw_json: dict[str, Any]
-
-class MicrobiotaInput(BaseModel):
-    """Esquema normalizado de los datos de microbiota"""
-
-    metadata: StudyMetadata = Field(default_factory=StudyMetadata)
-    sequencing: SequencingData = Field(default_factory=SequencingData)
-    diversity: DiversityIndices = Field(default_factory=DiversityIndices)
-    taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
-    functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
-    clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
-
-class MicrobiotaInterpretation(BaseModel):
-    """Esquema de análisis clínico de los datos microbiota realizado por la IA"""
-
-    summary: str = Field(..., description="Executive summary of the microbiota status")
-    gut_health_score: GutHealthScore
-    diversity_diagnosis: DiversityDiagnosis
-    enterotype_analysis: EnterotypeClassification
-    taxonomic_balance: list[ClinicalObservation] = Field(default_factory=list)
-    metabolic_potential: list[MetabolicFunction] = Field(default_factory=list)
-    opportunistic_risk: list[ClinicalObservation] = Field(default_factory=list)
-    dietary_recommendations: list[DietaryRecommendation] = Field(default_factory=list)
-    supplement_suggestions: list[SupplementSuggestion] = Field(default_factory=list)
-    final_technical_notes: str
 
 class AnalysisReport(BaseModel):
     """Esquema final que se va a guardar en la base de datos y retornar a Backend Nest"""

@@ -127,7 +127,10 @@ class AIService:
                 f"```json\n{json_schema}\n```\n\n"
                 
                 "REGLAS CRÍTICAS:\n"
-                "1. NO INVENTES DATOS. Si un campo no existe en la entrada, usa defaults del schema:\n"
+                "1. RECONOCE NOMBRES ALTERNATIVOS DE CAMPOS PRIMERO. Antes de aplicar defaults del schema,\n"
+                "   si un campo existe busca variaciones clínicas comunes en español e inglés para maximizar la captura de datos válidos.\n"
+                "   Si se encuentra alguna variante, extraer y asignar su valor al campo correcto del esquema.\n"
+                "2. NO INVENTES DATOS. Si un campo no existe en la entrada, usa defaults del schema:\n"
                 "   - Números: 0\n"
                 "   - Strings: 'No disponible'\n"
                 "   - Listas: [] (vacío)\n"
