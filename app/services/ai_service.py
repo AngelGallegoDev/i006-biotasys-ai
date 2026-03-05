@@ -1,5 +1,8 @@
-"""AI service for Gemini integration using the modern google-genai SDK."""
+import json
+from typing import Any
 
+"""AI service for Gemini integration using the modern google-genai SDK."""
+from typing import Any
 from google import genai
 from google.genai import types
 from tenacity import (
@@ -14,6 +17,7 @@ from app.core.logging import get_logger
 from app.core.exceptions import AIError
 from app.models.schemas import (
     MicrobiotaReport,
+    MicrobiotaInput,
     MicrobiotaInterpretation,
 )
 
@@ -96,6 +100,79 @@ class AIService:
             if isinstance(e, AIError):
                 raise e
             raise AIError("Gemini Extraction Engine failed", details=str(e))
+        
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception),
+        reraise=True
+    )
+    async def analyze_laboratory_json(self, raw_json: dict[str, Any]) -> MicrobiotaInput:
+        """
+        Parse and normalize raw laboratory JSON into MicrobiotaReport structure.
+        """
+        try:
+            logger.info(f"Normalizing raw laboratory JSON using {self.extractor_model}")
+            
+            import json
+            
+            # Generate the JSON schema from the actual Pydantic model
+            microbiota_input_schema = MicrobiotaInput.model_json_schema()
+            json_schema = json.dumps(microbiota_input_schema, indent=2, ensure_ascii=False)
+
+            system_instruction = (
+                "Eres un experto en normalización de datos de laboratorio de microbiota. "
+                "Tu tarea es transformar datos crudos (sin estructura definida) en un formato JSON estructurado "
+                "que cumpla ESTRICTAMENTE con el siguiente esquema Pydantic:\n\n"
+                f"```json\n{json_schema}\n```\n\n"
+                
+                "REGLAS CRÍTICAS:\n"
+                "1. RECONOCE NOMBRES ALTERNATIVOS DE CAMPOS PRIMERO. Antes de aplicar defaults del schema,\n"
+                "   si un campo existe busca variaciones clínicas comunes en español e inglés para maximizar la captura de datos válidos.\n"
+                "   Si se encuentra alguna variante, extraer y asignar su valor al campo correcto del esquema.\n"
+                "2. NO INVENTES DATOS. Si un campo no existe en la entrada, usa defaults del schema:\n"
+                "   - Números: 0\n"
+                "   - Strings: 'No disponible'\n"
+                "   - Listas: [] (vacío)\n"
+                "   - Booleanos: false\n"
+                "2. CALCULA el ratio Firmicutes/Bacteroidetes si tienes ambos valores (Firmicutes / Bacteroidetes).\n"
+                "3. Normaliza fechas al formato ISO 8601 (YYYY-MM-DDTHH:MM:SSZ).\n"
+                "4. Abundancias taxonómicas: Asegúrate de que sumen aproximadamente 100%.\n"
+                "5. Valida que 'observed_otus' sea un entero positivo.\n"
+                "6. Retorna ÚNICAMENTE JSON válido que pase validación con el esquema anterior.\n"
+            )    
+
+            prompt = (
+                f"Transforma los siguientes datos crudos de laboratorio al esquema MicrobiotaInput:\n\n"
+                f"=== DATOS DE ENTRADA ===\n"
+                f"{json.dumps(raw_json, indent=2, ensure_ascii=False)}\n\n"
+                f"=== RESPUESTA (JSON ESTRUCTURADO) ===\n"
+            )
+
+            response = await self.client.aio.models.generate_content(
+                model=self.extractor_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    response_schema=MicrobiotaInput,
+                    temperature=0.1,
+                ),
+            )
+
+            if not response.parsed:
+                raw_text = getattr(response, 'text', "No text field available")
+                logger.error(f"JSON normalization failed. Raw output: {raw_text[:500]}")
+                raise AIError("JSON normalization failed: Output did not match MicrobiotaInput schema.")
+
+            logger.info(f"Successfully normalized JSON to MicrobiotaInput")
+            return response.parsed
+
+        except Exception as e:
+            logger.error(f"Laboratory JSON analysis error: {str(e)}")
+            if isinstance(e, AIError):
+                raise e
+            raise AIError("Gemini JSON Normalization Engine failed", details=str(e))
 
     @retry(
         stop=stop_after_attempt(3),
@@ -103,18 +180,24 @@ class AIService:
         retry=retry_if_exception_type(Exception),
         reraise=True
     )
-    async def interpret_microbiota_data(self, data: MicrobiotaReport) -> MicrobiotaInterpretation:
+    async def interpret_microbiota_data(self, microbiota_data: MicrobiotaInput) -> MicrobiotaInterpretation:
         """
         Generate advanced clinical reasoning using the powerful Gemini 3 Pro interpreter.
         """
-        if not data:
+        if not microbiota_data:
             raise AIError("Interpretation failed: Input data is null")
-
+        
         try:
             logger.info(f"Interpreting data using {self.interpreter_model}")
+
+            import json
+            
+            # Generate the Interpretation schema from the actual Pydantic model
+            microbiota_interpretation_schema = MicrobiotaInterpretation.model_json_schema()
+            interpretation_schema = json.dumps(microbiota_interpretation_schema, indent=2, ensure_ascii=False)
             
             system_instruction = (
-                "Eres un Bioinformático Senior en Biotasys. Tu tarea es INTERPRETAR los datos de microbiota para generar INSIGHTS ESTRUCTURADOS y ACCIONABLES. "
+                "Eres un Bioinformático Senior. Tu tarea es INTERPRETAR los datos de microbiota para generar INSIGHTS ESTRUCTURADOS y ACCIONABLES. "
                 "CRÍTICO: Toda la respuesta (explicaciones, recomendaciones) debe ser en un Español profesional, neutro y empático. "
                 "Usa los nuevos modelos definidos: "
                 "1. GutHealthScore: Calcula un puntaje de 0-100. 100=Perfecto. Resta puntos por disbiosis, patógenos o baja diversidad. "
@@ -127,10 +210,16 @@ class AIService:
                 "3. SupplementSuggestion: Sugiere probióticos/prebióticos solo si hay evidencia de déficit. "
                 "   - Ej: 'Lactobacillus rhamnosus' si hay permeabilidad intestinal. "
                 "4. DiversityDiagnosis y EnterotypeClassification: Mantén el rigor técnico previo. "
-                "NO inventes datos. Si no hay evidencia clara para una recomendación, no la hagas."
+                "NO inventes datos. Si no hay evidencia clara para una recomendación, no la hagas.\n\n"
+                f"ESQUEMA DE SALIDA ESPERADO:\n```json\n{interpretation_schema}\n```"
             )
 
-            prompt = f"Basado en los siguientes datos técnicos extraídos, genera la interpretación técnica detallada:\n\n{data.model_dump_json()}"
+            prompt = (
+                f"Basado en los siguientes datos técnicos de microbiota extraídos, genera la interpretación clínica detallada:\n\n"
+                f"=== DATOS TÉCNICOS EXTRAÍDOS ===\n"
+                f"{microbiota_data}\n\n"
+                f"=== INTERPRETACIÓN (JSON ESTRUCTURADO) ===\n"
+            )
 
             response = await self.client.aio.models.generate_content(
                 model=self.interpreter_model,
@@ -145,7 +234,8 @@ class AIService:
 
             if not response.parsed:
                 raise AIError("Interpretation failed: Gemini returned null parsed data.")
-
+            
+            logger.info(f"Successfully interpreted microbiota data")
             return response.parsed
 
         except Exception as e:
