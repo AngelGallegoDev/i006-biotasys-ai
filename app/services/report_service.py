@@ -1,10 +1,11 @@
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
-from app.models.schemas import AnalysisReport, AnalysisRequest, MicrobiotaInput, MicrobiotaReport
+from app.models.schemas import AnalysisRequest, MicrobiotaInput, MicrobiotaReport, NutricionistInfo, PatientInfo, AnalysisReport
 from app.repositories.report_repository import ReportRepository
 from app.services.ai_service import AIService, ai_service
 
@@ -92,7 +93,7 @@ class ReportService:
                 microbiota_data = await self.ai.analyze_laboratory_json(raw_json)
             
             # STEP 2: Expert Interpretation (Gemini 3 Pro)
-            interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
+            microbiota_interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
             
             # Todavía no están definidos los datos exactos que guardaremos en la base de datos"
             """ 
@@ -102,8 +103,21 @@ class ReportService:
             logger.info(f"JSON analysis completed and persisted for {request.documento_id}")
             """
             return AnalysisReport(
+                study_code = "BIO-123",  # Placeholder
+                nutricionist = NutricionistInfo(
+                    id = 23,  # Placeholder
+                    name = "Dr. Smith"  # Placeholder 
+                ),  
+                patient = PatientInfo(
+                    id = "PAT-118",  # Placeholder
+                    sex = "F",  # Placeholder
+                    age = 42  # Placeholder
+                ),  
                 data = microbiota_data,
-                interpretation = interpretation
+                interpretation = microbiota_interpretation,
+                file_url = "https://biotasys.com/v1/report_123.pdf",  # Placeholder
+                study_date = datetime(2026, 3, 6, 15, 30, tzinfo=UTC),  # Placeholder
+                report_date = datetime.now(UTC)  
             )
         
         except Exception as e:

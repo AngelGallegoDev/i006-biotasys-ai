@@ -252,17 +252,7 @@ class EnterotypeClassification(BaseModel):
     )
     description: str = Field(..., description="Characteristics of this enterotype")
 
-class MicrobiotaInput(BaseModel):
-    """Esquema normalizado de los datos de microbiota"""
-
-    metadata: StudyMetadata = Field(default_factory=StudyMetadata)
-    sequencing: SequencingData = Field(default_factory=SequencingData)
-    diversity: DiversityIndices = Field(default_factory=DiversityIndices)
-    taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
-    functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
-    clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
-
-class MicrobiotaInterpretation(BaseModel):
+class LuisMicrobiotaInterpretation(BaseModel):
     """Esquema de análisis clínico de los datos microbiota realizado por la IA"""
 
     summary: str = Field(..., description="Executive summary of the microbiota status")
@@ -274,7 +264,7 @@ class MicrobiotaInterpretation(BaseModel):
     opportunistic_risk: list[ClinicalObservation] = Field(default_factory=list)
     dietary_recommendations: list[DietaryRecommendation] = Field(default_factory=list)
     supplement_suggestions: list[SupplementSuggestion] = Field(default_factory=list)
-    final_technical_notes: str
+    final_technical_notes: str 
 
 class MicrobiotaReport(BaseModel):
     """Full structured microbiota report."""
@@ -285,7 +275,7 @@ class MicrobiotaReport(BaseModel):
     taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
     functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
     clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
-    interpretation: MicrobiotaInterpretation | None = None
+    interpretation: LuisMicrobiotaInterpretation | None = None
     engine_version: str = Field(default="1.2.5")
     processed_at: datetime = Field(default_factory=datetime.now)
 
@@ -298,18 +288,144 @@ class AnalysisRequest(BaseModel):
     doctor_id: str
     fecha_envio: datetime
 
+class PatientInfo(BaseModel):
+    """Información básica del paciente."""
+
+    id: str = Field(..., description="Patient ID associated with the report")
+    sex: str = Field(..., description="Patient sex")
+    age: int = Field(..., description="Patient age")
+
+class NutricionistInfo(BaseModel):
+    """Información del nutricionista."""
+
+    id: int = Field(..., description="Nutritionist ID associated with the report")
+    name: str = Field(..., description="Nutritionist name associated with the report")
+
 class JsonAnalysisRequest(BaseModel):
     """Esquema de petición de análisis de Backend Nest"""
 
     raw_json: dict[str, Any]
 
+class MicrobiotaInput(BaseModel):
+    """Esquema normalizado de los datos de microbiota"""
+
+    metadata: StudyMetadata = Field(default_factory=StudyMetadata)
+    sequencing: SequencingData = Field(default_factory=SequencingData)
+    diversity: DiversityIndices = Field(default_factory=DiversityIndices)
+    taxonomy: TaxonomicComposition = Field(default_factory=TaxonomicComposition)
+    functionality: FunctionalMarkers = Field(default_factory=FunctionalMarkers)
+    clinical_context: ClinicalContext = Field(default_factory=ClinicalContext)
+
+class GeneralSummary(BaseModel):
+    """Final technical observations and conclusions based on the microbiota analysis."""
+
+    summary: str = Field(
+        ..., description="Summary of the final conclusions based on the microbiota status"
+    )
+    summary_tags: list[str] = Field(
+        default_factory=list, description="Short tags summarizing the overall microbiota status (e.g. 'Dysbiosis', 'Optimal Diversity')"
+    )
+    firmicutes_bacteroidetes_ratio: float = Field(
+        default=0.0, description="Calculated Firmicutes/Bacteroidetes ratio"
+    )
+    firmicutes_bacteroidetes_range: str = Field(
+        default="", description="Clinical range for F/B ratio (e.g. 'High', 'Low')"
+    )
+    shannon_index: float = Field(
+        default=0.0, description="Shannon diversity index value"
+    )
+    shannon_range: str = Field(
+        default="", description="Clinical range for Shannon index (e.g. 'High', 'Low')"
+    )
+
+class BacterialComposition(BaseModel):
+    """Clinical interpretation of the taxonomic composition."""
+
+    gender: str = Field(
+        ..., description="Taxonomic unit (e.g. 'Firmicutes', 'Bacteroidetes', 'Escherichia coli')"
+    )
+    presence: str = Field(
+        ..., description="Presence status of the taxonomic unit (e.g. 'Not Detected', 'Low', 'Normal', 'High')"
+    )
+    clinical_implication: str = Field(..., description="Biological consequence")
+
+class BacterialDiversity(BaseModel):
+    """Bacterial diversity based on taxonomic composition and diversity indices."""
+
+    diversity_headline: str = Field(
+        ..., description="Summary headline for bacterial diversity status (e.g. 'Optimal Diversity', 'No extreme domination')"
+    )
+    clinical_implication: str = Field(..., description="Biological consequence")
+
+class OpportunisticMicroorganisms(BaseModel):
+    """Opportunistic microorganisms detected and their clinical implications."""
+
+    microorganism: str = Field(
+        ..., description="Opportunistic microorganism (e.g. 'Escherichia coli')"
+    )
+    abundance_status: str = Field(
+        ..., description="Abundance status of the microorganism (e.g. 'Low', 'Normal', 'High')"
+    )
+    abundance_score: int = Field(
+        ..., description="Quantitative score supporting the abundance status (e.g. 0-100)"
+    )
+    clinical_implication: str = Field(..., description="Biological consequence")
+
+class InferredMetabolicFunctions(BaseModel):
+    """Inferred metabolic functions based on bacterial abundance."""
+
+    metabolic_function: str = Field(
+        ..., description="Metabolic function (e.g. 'Butyrate Production')"
+    )
+    activity_status: str = Field(
+        ..., description="Activity level (e.g. 'Reduced', 'Normal', 'Enhanced')"
+    )
+    activity_score: int = Field(
+        ..., description="Quantitative score supporting the activity status (e.g. 0-100)"
+    )
+    clinical_implication: str = Field(..., description="Biological consequence")
+
+class ConclusionTags(BaseModel):
+    """Tags summarizing key clinical conclusions."""
+
+    tag: str = Field(..., description="Short tag summarizing key clinical conclusions (e.g. 'Dysbiosis', 'Optimal Diversity')")
+    
+class FinalObservations(BaseModel):
+    """Final technical observations and conclusions based on the microbiota analysis."""
+
+    conclusions: str = Field(
+        ..., description="Summary of the final conclusions based on the microbiota status"
+    )
+    conclusion_tags: list[str] = Field(
+        default_factory=list, description="Short tags summarizing key clinical conclusions (e.g. 'Dysbiosis', 'Optimal Diversity')"
+    )
+    global_indicator: str = Field(
+        ..., description="Overall clinical indicator (e.g. 'Optimal', 'Needs Improvement')"
+    )
+    risk_score: int = Field(
+        ..., description="Quantitative score supporting the overall risk of the patient based on the microbiota status (e.g. 0-100)"
+    )
+
+class MicrobiotaInterpretation(BaseModel):
+    """Esquema de análisis clínico de los datos de microbiota realizado por la IA"""
+
+    general_summary: GeneralSummary = Field(...)
+    bacterial_composition: list[BacterialComposition] = Field(default_factory=list)
+    bacterial_diversity: list[BacterialDiversity] = Field(default_factory=list)
+    opportunistic_microorganisms: list[OpportunisticMicroorganisms] = Field(default_factory=list)
+    inferred_metabolic_functions: list[InferredMetabolicFunctions] = Field(default_factory=list)
+    final_observations: FinalObservations = Field(...)
+
 class AnalysisReport(BaseModel):
     """Esquema final que se va a guardar en la base de datos y retornar a Backend Nest"""
     
+    study_code: str = Field(..., description="Study code associated with the report")
+    nutricionist: NutricionistInfo = Field(..., description="Nutritionist information for validation and association")
+    patient: PatientInfo = Field(..., description="Basic patient information for validation and association")
     data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
-    interpretation: MicrobiotaInterpretation | None = Field(..., description="Interpreted microbiota data")
-    """ documento_id: str
-    empresa_id: str
-    doctor_id: str
-    fecha_envio: datetime """
+    interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
+    file_url: str = Field(..., description="PDF file URL")
+    study_date: datetime = Field(..., description="Date when the study was created")
+    report_date: datetime = Field(default_factory=datetime.now, description="Date when the report was generated")
+    
 
