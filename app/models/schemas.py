@@ -1,6 +1,6 @@
 """Pydantic models for request/response schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -293,18 +293,22 @@ class PatientInfo(BaseModel):
 
     id: str = Field(..., description="Patient ID associated with the report")
     sex: str = Field(..., description="Patient sex")
-    age: int = Field(..., description="Patient age")
+    age: int = Field(..., description="Patient age") 
 
-class NutricionistInfo(BaseModel):
-    """Información del nutricionista."""
+""" class NutricionistInfo(BaseModel):
+    Información del nutricionista.
 
     id: int = Field(..., description="Nutritionist ID associated with the report")
-    name: str = Field(..., description="Nutritionist name associated with the report")
+    name: str = Field(..., description="Nutritionist name associated with the report") """
 
 class JsonAnalysisRequest(BaseModel):
     """Esquema de petición de análisis de Backend Nest"""
 
-    raw_json: dict[str, Any]
+    study_code: str = Field(..., description="Study code associated with the report")
+    nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
+    patient: PatientInfo = Field(..., description="Patient associated with the report")
+    raw_json: dict[str, Any] = Field(..., description="Raw JSON input from Backend Nest for analysis")
+    study_date: datetime = Field(..., description="Date when the study was created")
 
 class MicrobiotaInput(BaseModel):
     """Esquema normalizado de los datos de microbiota"""
@@ -420,12 +424,9 @@ class AnalysisReport(BaseModel):
     """Esquema final que se va a guardar en la base de datos y retornar a Backend Nest"""
     
     study_code: str = Field(..., description="Study code associated with the report")
-    nutricionist: NutricionistInfo = Field(..., description="Nutritionist information for validation and association")
-    patient: PatientInfo = Field(..., description="Basic patient information for validation and association")
+    nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
+    patient: PatientInfo = Field(..., description="Patient associated with the report")
     data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
-    file_url: str = Field(..., description="PDF file URL")
     study_date: datetime = Field(..., description="Date when the study was created")
-    report_date: datetime = Field(default_factory=datetime.now, description="Date when the report was generated")
-    
-
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Timestamp when the report was created")
