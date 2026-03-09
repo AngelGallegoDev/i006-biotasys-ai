@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Security
 from typing import Any
 
-from app.models.schemas import AnalysisReport, AnalysisRequest, ErrorResponse
+from app.models.schemas import JsonAnalysisRequest, AnalysisRequest, AnalysisReport, ErrorResponse
 from app.services.report_service import ReportService, report_service
 from app.core.logging import get_logger
 from app.core.exceptions import ResourceNotFoundError
@@ -57,7 +57,7 @@ async def process_microbiota_document(
     },
 )
 async def process_microbiota_json(
-    raw_json: dict[str, Any],
+    request: JsonAnalysisRequest,
     service: ReportService = Depends(lambda: report_service)
 ):
     """
@@ -66,14 +66,16 @@ async def process_microbiota_json(
     """
     try:
         logger.info(f"Certified JSON request for raw json data")
-        result = await service.process_json_and_save(raw_json)
+        result = await service.process_json_and_save(request)
         return result
     except Exception as e:
         logger.error(f"JSON engine failure for raw json data: {str(e)}")
         raise e
 
 
-@router.get("/report/{report_id}", response_model=dict[str, Any])
+@router.get("/report/{report_id}", 
+    response_model=AnalysisReport
+)
 async def get_report(
     report_id: str,
     service: ReportService = Depends(lambda: report_service)
@@ -84,4 +86,19 @@ async def get_report(
     report = await service.get_report(report_id)
     if not report:
         raise ResourceNotFoundError(f"Report with ID {report_id} not found")
+    return report
+
+@router.get("/analysis-reports/{study_code}", 
+    response_model=AnalysisReport
+)
+async def get_report_by_study_code(
+    study_code: str,
+    service: ReportService = Depends(lambda: report_service)
+):
+    """
+    Retrieves a report. Protected: Requires X-API-KEY.
+    """
+    report = await service.get_report_by_study_code(study_code)
+    if not report:
+        raise ResourceNotFoundError(f"Report with study code {study_code} not found")
     return report

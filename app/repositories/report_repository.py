@@ -7,7 +7,7 @@ from typing import Any, Optional, TypedDict, cast
 
 from app.core.logging import get_logger
 from app.core.exceptions import DatabaseError, ValidationError
-from app.models.schemas import AnalysisRequest, MicrobiotaReport
+from app.models.schemas import AnalysisRequest, MicrobiotaReport, JsonAnalysisRequest, AnalysisReport
 from app.repositories.base import BaseRepository
 
 logger = get_logger(__name__)
@@ -21,6 +21,19 @@ class ReportDict(TypedDict):
     company_id: Optional[str]
     user_id: str
     study_code: str
+
+class AnalysisReportDict(TypedDict):
+    id: str
+    study_code: str
+    nutricionist_id: str
+    patient_id: str
+    patient_sex: str
+    patient_age: int
+    data: dict[str, Any]
+    interpretation: dict[str, Any]
+    study_date: str
+    created_at: str
+    
 
 class ReportRepository(BaseRepository):
     """Repository for managing analyzed microbiota reports in Supabase."""
@@ -69,6 +82,54 @@ class ReportRepository(BaseRepository):
             logger.error(f"❌ Error guardando informe {report_id}: {str(e)}")
             raise DatabaseError("Error persistiendo informe", details=str(e)) from e
 
+    async def save_json_report(
+        self,
+        report: AnalysisReport,
+        metadata: JsonAnalysisRequest,
+    ) -> AnalysisReportDict:
+        """Persist an AnalysisReport into the analysis_reports table."""
+
+        if not report.patient_id:
+            raise ValidationError("Patient ID is required to persist a JSON report")
+
+        report_id = str(uuid.uuid4())
+
+        try:
+            data: AnalysisReportDict = {
+                "id": report_id,
+                "study_code": report.study_code,
+                "nutricionist_id": report.nutricionist_id,
+                "patient_id": report.patient.id,
+                "patient_sex": report.patient.sex,
+                "patient_age": report.patient.age,
+                "data": report.data.model_dump(mode="json"),
+                "interpretation": report.interpretation.model_dump(mode="json"),
+                "study_date": report.study_date.isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+
+            result = await asyncio.to_thread(
+                lambda: self.client
+                    .table("analysis_reports")
+                    .insert(data)
+                    .execute()
+            )
+
+            logger.info(
+                f"✅ JSON report saved [{report_id[:8]}] "
+                f"Study:{report.study_code} Patient:{report.patient_id[:8]}"
+            )
+            
+            if not result.data:
+                raise DatabaseError("Insert succeeded but returned no data")
+
+            return cast(AnalysisReportDict, result.data[0])
+
+        except Exception as e:
+            logger.error(f"❌ Error saving JSON report {report_id}: {str(e)}")
+            raise DatabaseError(
+                "Failed to persist JSON analysis report", details=str(e)
+            ) from e
 
     async def get_reports_by_patient(self, patient_id: str) -> list[dict[str, Any]]:
         """Retrieves history of reports for a specific patient."""
@@ -116,4 +177,30 @@ class ReportRepository(BaseRepository):
 
         except Exception as e:
             logger.error(f"Error fetching report {report_id}: {str(e)}")
+            return None
+        
+    async def get_report_by_study_code(self, study_code: str) -> dict[str, Any] | None:
+        """Retrieves a single report by its study_code."""
+        try:
+            result = (
+                self.client.table("analysis_reports")
+                .select("*")
+                .eq("study_code", study_code)
+                .limit(1)
+                .execute()
+            )
+            if not result.data:
+                return None
+
+            row = result.data[0]
+            # Reshape flat patient columns into nested PatientInfo structure
+            row["patient"] = {
+                "id": row.pop("patient_id", None),
+                "sex": row.pop("patient_sex", None),
+                "age": row.pop("patient_age", None),
+            }
+            return row
+
+        except Exception as e:
+            logger.error(f"Error fetching report {study_code}: {str(e)}")
             return None

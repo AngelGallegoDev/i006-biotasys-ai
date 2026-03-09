@@ -5,7 +5,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
-from app.models.schemas import AnalysisRequest, MicrobiotaInput, MicrobiotaReport, NutricionistInfo, PatientInfo, AnalysisReport
+from app.models.schemas import AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport  #NutricionistInfo, PatientInfo
 from app.repositories.report_repository import ReportRepository
 from app.services.ai_service import AIService, ai_service
 
@@ -75,8 +75,7 @@ class ReportService:
             raise e
 
     
-    async def process_json_and_save(self, raw_json: dict[str, Any]) -> AnalysisReport: 
-        # Falta añadir como parámeto JsonAnalysisRequest cuando tengamos claros los datos que nos envían.    
+    async def process_json_and_save(self, request: JsonAnalysisRequest) -> AnalysisReport: 
         """
         Biotasys JSON Input pipeline:
         Interpretación directa con Gemini 3 Pro para obtener el análisis clínico.
@@ -84,41 +83,30 @@ class ReportService:
         try:
             logger.info("Processing JSON raw input")
             
-            # STEP 1: Normalize input_data into DirectAnalysisRequest (if not already)            
+            # STEP 1: Normalize raw_json into AnalysisRequest (if not already)            
             try:
-                microbiota_data = MicrobiotaInput.model_validate(raw_json)
+                microbiota_data = MicrobiotaInput.model_validate(request.raw_json)
                 logger.info("Input data validated as MicrobiotaInput structure")
             except Exception as e:
                 logger.info(f"Input data is unstructured or has field mismatches. Normalizing via AI")
-                microbiota_data = await self.ai.analyze_laboratory_json(raw_json)
+                microbiota_data = await self.ai.analyze_laboratory_json(request.raw_json)
             
             # STEP 2: Expert Interpretation (Gemini 3 Pro)
             microbiota_interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
             
-            # Todavía no están definidos los datos exactos que guardaremos en la base de datos"
-            """ 
-            # STEP 3: Persistence with Metadata
-            saved_report = await self.repository.save_report(report, request)
-            
-            logger.info(f"JSON analysis completed and persisted for {request.documento_id}")
-            """
-            return AnalysisReport(
-                study_code = "BIO-123",  # Placeholder
-                nutricionist = NutricionistInfo(
-                    id = 23,  # Placeholder
-                    name = "Dr. Smith"  # Placeholder 
-                ),  
-                patient = PatientInfo(
-                    id = "PAT-118",  # Placeholder
-                    sex = "F",  # Placeholder
-                    age = 42  # Placeholder
-                ),  
-                data = microbiota_data,
-                interpretation = microbiota_interpretation,
-                file_url = "https://biotasys.com/v1/report_123.pdf",  # Placeholder
-                study_date = datetime(2026, 3, 6, 15, 30, tzinfo=UTC),  # Placeholder
-                report_date = datetime.now(UTC)  
+            # STEP 3: Persistence in database
+            report = AnalysisReport(
+                study_code=request.study_code,
+                nutricionist_id=request.nutricionist_id,
+                patient=request.patient,
+                data=microbiota_data,
+                interpretation=microbiota_interpretation,
+                study_date=request.study_date.isoformat(),
             )
+
+            await self.repository.save_json_report(report, request)
+
+            return report
         
         except Exception as e:
             logger.error(f"JSON pipeline failed: {str(e)}")
@@ -128,6 +116,10 @@ class ReportService:
     async def get_report(self, report_id: str) -> dict[str, Any] | None:
         """Fetch a report by its ID through the repository."""
         return await self.repository.get_report_by_id(report_id)
+    
+    async def get_report_by_study_code(self, study_code: str) -> dict[str, Any] | None:
+        """Fetch a report by its study code through the repository."""
+        return await self.repository.get_report_by_study_code(study_code)
 
     async def process_and_save(self, raw_text: str, user_id: str | None = None) -> dict[str, Any]:
         # Keep legacy method for backward compatibility if needed,
