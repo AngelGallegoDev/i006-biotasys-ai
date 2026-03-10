@@ -195,24 +195,6 @@ class AIService:
             # Generate the Interpretation schema from the actual Pydantic model
             microbiota_interpretation_schema = MicrobiotaInterpretation.model_json_schema()
             interpretation_schema = json.dumps(microbiota_interpretation_schema, indent=2, ensure_ascii=False)
-            
-            """ system_instruction = (
-                "Eres un Bioinformático Senior. Tu tarea es INTERPRETAR los datos de microbiota para generar INSIGHTS ESTRUCTURADOS y ACCIONABLES. "
-                "CRÍTICO: Toda la respuesta (explicaciones, recomendaciones) debe ser en un Español profesional, neutro y empático. "
-                "Usa los nuevos modelos definidos: "
-                "1. GutHealthScore: Calcula un puntaje de 0-100. 100=Perfecto. Resta puntos por disbiosis, patógenos o baja diversidad. "
-                "   - 'label': Excelente (>90), Bueno (>70), Regular (>50), Pobre (<50). "
-                "   - 'breakdown': Explica brevemente por qué se restaron puntos. "
-                "2. DietaryRecommendation: Genera 3-5 recomendaciones ESPECÍFICAS basadas en los hallazgos. "
-                "   - Si falta Butirato -> Recomendar almidón resistente (papa fría, plátano verde). "
-                "   - Si hay inflamación -> Recomendar Omega-3, Cúrcuma. "
-                "   - Usa 'action': 'Aumentar', 'Reducir' o 'Evitar'. "
-                "3. SupplementSuggestion: Sugiere probióticos/prebióticos solo si hay evidencia de déficit. "
-                "   - Ej: 'Lactobacillus rhamnosus' si hay permeabilidad intestinal. "
-                "4. DiversityDiagnosis y EnterotypeClassification: Mantén el rigor técnico previo. "
-                "NO inventes datos. Si no hay evidencia clara para una recomendación, no la hagas.\n\n"
-                f"ESQUEMA DE SALIDA ESPERADO:\n```json\n{interpretation_schema}\n```"
-            ) """
 
             system_instruction = (
                 "Eres un Bioinformático Senior especializado en análisis de microbiota intestinal. "

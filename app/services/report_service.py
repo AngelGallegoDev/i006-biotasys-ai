@@ -5,8 +5,9 @@ import httpx
 
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
-from app.models.schemas import AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport  #NutricionistInfo, PatientInfo
-from app.repositories.report_repository import ReportRepository
+from app.config.settings import settings
+from app.models.schemas import AnalysisReportDB, AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport  #NutricionistInfo, PatientInfo
+from app.repositories.report_repository import AnalysisReportDict, ReportRepository
 from app.services.ai_service import AIService, ai_service
 
 logger = get_logger(__name__)
@@ -75,7 +76,7 @@ class ReportService:
             raise e
 
     
-    async def process_json_and_save(self, request: JsonAnalysisRequest) -> AnalysisReport: 
+    async def process_json_save_and_send(self, request: JsonAnalysisRequest) -> AnalysisReport: 
         """
         Biotasys JSON Input pipeline:
         Interpretación directa con Gemini 3 Pro para obtener el análisis clínico.
@@ -104,14 +105,45 @@ class ReportService:
                 study_date=request.study_date.isoformat(),
             )
 
-            await self.repository.save_json_report(report, request)
+            saved_report = await self.repository.save_json_report(report, request)
+            validated_report = AnalysisReportDB.model_validate(saved_report)
 
-            return report
+            # STEP 4: Callback to Backend Nest
+            await self.post_to_backend_nest(validated_report)
+
+            return validated_report
         
         except Exception as e:
             logger.error(f"JSON pipeline failed: {str(e)}")
             # If it's already a BiotasysException, let it bubble up to the controller
             raise e
+    
+    async def post_to_backend_nest(self, validated_report: AnalysisReportDB):
+        """Envía el reporte generado al Backend Nest vía POST."""
+
+        if not settings.backend_nest_url:
+            logger.error("Backend Nest URL is not configured in settings")
+            return
+        
+        # TESTEADA CON ÉXITO EN WEBHOOK.SITE USANDO DE EJEMPLO BACKEND_NEST_URL=https://webhook.site/a2ce5f7f-5690-47ef-9b5e-1bb265df3b06
+        # Todavía por implementar el funcionamiento con el UUID del estudio en Backend Nest
+        callback_url = f"{settings.backend_nest_url}/studies/{validated_report.id}/processing-result"
+        logger.info(f"Callback URL: {callback_url}")
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await client.post(
+                    callback_url,
+                    json=validated_report.model_dump(mode="json"),
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-API-KEY": settings.jwt_secret_key,
+                    },
+                )
+
+        except Exception as e:
+            # Log pero NO re-lanzar: el reporte ya se guardó, el callback es best-effort
+            logger.error(f"Error en callback a Backend Nest: {str(e)}")
 
     async def get_report(self, report_id: str) -> dict[str, Any] | None:
         """Fetch a report by its ID through the repository."""

@@ -66,7 +66,7 @@ async def process_microbiota_json(
     """
     try:
         logger.info(f"Certified JSON request for raw json data")
-        result = await service.process_json_and_save(request)
+        result = await service.process_json_save_and_send(request)
         return result
     except Exception as e:
         logger.error(f"JSON engine failure for raw json data: {str(e)}")
