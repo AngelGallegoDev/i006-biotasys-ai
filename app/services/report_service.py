@@ -98,7 +98,7 @@ class ReportService:
             report = AnalysisReport(
                 study_code=request.study_code,
                 nutricionist_id=request.nutricionist_id,
-                patient=request.patient,
+                patient_id=request.patient_id,
                 data=microbiota_data,
                 interpretation=microbiota_interpretation,
                 study_date=request.study_date.isoformat(),
