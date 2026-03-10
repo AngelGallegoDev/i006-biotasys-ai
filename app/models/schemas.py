@@ -288,12 +288,12 @@ class AnalysisRequest(BaseModel):
     doctor_id: str
     fecha_envio: datetime
 
-class PatientInfo(BaseModel):
-    """Información básica del paciente."""
+""" class PatientInfo(BaseModel):
+    Información básica del paciente.
 
     id: str = Field(..., description="Patient ID associated with the report")
     sex: str = Field(..., description="Patient sex")
-    age: int = Field(..., description="Patient age") 
+    age: int = Field(..., description="Patient age")  """
 
 """ class NutricionistInfo(BaseModel):
     Información del nutricionista.
@@ -306,7 +306,7 @@ class JsonAnalysisRequest(BaseModel):
 
     study_code: str = Field(..., description="Study code associated with the report")
     nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
-    patient: PatientInfo = Field(..., description="Patient associated with the report")
+    patient_id: str = Field(..., description="Patient associated with the report")
     raw_json: dict[str, Any] = Field(..., description="Raw JSON input from Backend Nest for analysis")
     study_date: datetime = Field(..., description="Date when the study was created")
 
@@ -425,7 +425,7 @@ class AnalysisReport(BaseModel):
     
     study_code: str = Field(..., description="Study code associated with the report")
     nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
-    patient: PatientInfo = Field(..., description="Patient associated with the report")
+    patient_id: str = Field(..., description="Patient associated with the report")
     data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
     study_date: datetime = Field(..., description="Date when the study was created")

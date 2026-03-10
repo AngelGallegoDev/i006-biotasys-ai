@@ -7,7 +7,7 @@ from typing import Any, Optional, TypedDict, cast
 
 from app.core.logging import get_logger
 from app.core.exceptions import DatabaseError, ValidationError
-from app.models.schemas import AnalysisRequest, MicrobiotaReport, JsonAnalysisRequest, AnalysisReport
+from app.models.schemas import AnalysisRequest, MicrobiotaInput, MicrobiotaInterpretation, MicrobiotaReport, JsonAnalysisRequest, AnalysisReport
 from app.repositories.base import BaseRepository
 
 logger = get_logger(__name__)
@@ -27,10 +27,8 @@ class AnalysisReportDict(TypedDict):
     study_code: str
     nutricionist_id: str
     patient_id: str
-    patient_sex: str
-    patient_age: int
-    data: dict[str, Any]
-    interpretation: dict[str, Any]
+    data: MicrobiotaInput
+    interpretation: MicrobiotaInterpretation
     study_date: str
     created_at: str
     
@@ -99,9 +97,7 @@ class ReportRepository(BaseRepository):
                 "id": report_id,
                 "study_code": report.study_code,
                 "nutricionist_id": report.nutricionist_id,
-                "patient_id": report.patient.id,
-                "patient_sex": report.patient.sex,
-                "patient_age": report.patient.age,
+                "patient_id": report.patient_id,
                 "data": report.data.model_dump(mode="json"),
                 "interpretation": report.interpretation.model_dump(mode="json"),
                 "study_date": report.study_date.isoformat(),
@@ -189,17 +185,8 @@ class ReportRepository(BaseRepository):
                 .limit(1)
                 .execute()
             )
-            if not result.data:
-                return None
 
-            row = result.data[0]
-            # Reshape flat patient columns into nested PatientInfo structure
-            row["patient"] = {
-                "id": row.pop("patient_id", None),
-                "sex": row.pop("patient_sex", None),
-                "age": row.pop("patient_age", None),
-            }
-            return row
+            return result.data[0] if result.data else None
 
         except Exception as e:
             logger.error(f"Error fetching report {study_code}: {str(e)}")
