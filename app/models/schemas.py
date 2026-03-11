@@ -430,3 +430,13 @@ class AnalysisReport(BaseModel):
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
     study_date: datetime = Field(..., description="Date when the study was created")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Timestamp when the report was created")
+
+class AnalysisReportDB(BaseModel):
+    id: str = Field(..., description="Unique identifier for the report in the database")
+    study_code: str = Field(..., description="Study code associated with the report")
+    nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
+    patient_id: str = Field(..., description="Patient associated with the report")
+    data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
+    interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
+    study_date: str = Field(..., description="Date when the study was created")
+    created_at: str = Field(..., description="Timestamp when the report was created")

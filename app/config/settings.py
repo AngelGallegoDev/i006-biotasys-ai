@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 30
 
+    # Backend Nest Configuration
+    backend_nest_url: str
+
     # Supabase Configuration
     supabase_url: str
     supabase_key: str

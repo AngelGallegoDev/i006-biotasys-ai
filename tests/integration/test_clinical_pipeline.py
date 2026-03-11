@@ -4,7 +4,7 @@ import httpx
 from datetime import datetime, UTC
 from app.services.report_service import ReportService
 from app.models.schemas import (
-    AnalysisRequest, MicrobiotaReport, MicrobiotaInterpretation, 
+    AnalysisRequest, DirectAnalysisRequest, MicrobiotaReport, MicrobiotaInterpretation, 
     StudyMetadata, SequencingData, DiversityIndices, TaxonomicComposition, 
     TaxonomicAbundance, FunctionalMarkers, ClinicalContext
 )
