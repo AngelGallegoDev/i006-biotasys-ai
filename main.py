@@ -2,20 +2,23 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from postgrest.exceptions import APIError as SupabaseAPIError
 
 from app.api.v1 import api_router
 from app.config.settings import settings
 from app.core.logging import get_logger, setup_logging
-from app.models.schemas import RootResponse
+from app.models.schemas import AnalysisReport, RootResponse
+from app.services import pdf_service, report_service
 from app.services.ai_service import ai_service
 from app.core.exceptions import (
     supabase_exception_handler, 
     biotasys_exception_handler,
     BiotasysException
 )
+from typing import Any,Dict
 
 # Setup logging
 setup_logging()
@@ -70,6 +73,22 @@ async def read_root():
         docs="/docs",
         health="/api/v1/health"
     )
+
+@app.post("/reports/{study_code}/pdf")
+async def generate_pdf(study_code: str):
+    report = await report_service.get_report_by_study_code(study_code)
+    if not report:
+        raise HTTPException(404, "Report not found")
+    
+    validated_report = AnalysisReport.model_validate(report)
+    pdf_buffer = pdf_service.generate_microbiota_pdf(validated_report)
+    
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=microbiota_{study_code}.pdf"}
+    )
+
 
 
 if __name__ == "__main__":

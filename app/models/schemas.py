@@ -440,3 +440,8 @@ class AnalysisReportDB(BaseModel):
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
     study_date: str = Field(..., description="Date when the study was created")
     created_at: str = Field(..., description="Timestamp when the report was created")
+
+class AnalysisReportWithPDF(BaseModel):
+    report: AnalysisReportDB
+    pdf_url: str
+    pdf_filename: str

@@ -191,3 +191,25 @@ class ReportRepository(BaseRepository):
         except Exception as e:
             logger.error(f"Error fetching report {study_code}: {str(e)}")
             return None
+        
+    async def upload_pdf_to_storage(self, pdf_bytes: bytes, filename: str) -> str:
+        """Sube un archivo PDF al bucket 'reports' y devuelve la URL pública."""
+        try:
+            result = await asyncio.to_thread(
+                lambda: self.client.storage.from_("reports").upload(
+                    path=filename,
+                    file=pdf_bytes,
+                    file_options={"content-type": "application/pdf", "upsert": "true"}
+                )
+            )
+            
+            # Obtener URL pública
+            public_url = self.client.storage.from_("reports").get_public_url(filename)
+            logger.info(f"✅ PDF guardado en Storage: {public_url}")
+            
+            return public_url
+            
+        except Exception as e:
+            logger.error(f"❌ Error subiendo PDF a Storage: {str(e)}")
+            raise DatabaseError("Error uploading PDF to storage", details=str(e)) from e
+
