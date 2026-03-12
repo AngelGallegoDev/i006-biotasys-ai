@@ -103,7 +103,7 @@ class ReportRepository(BaseRepository):
                 "patient_id": report.patient_id,
                 "data": report.data.model_dump(mode="json"),
                 "interpretation": report.interpretation.model_dump(mode="json"),
-                "file_url": "https://example.com/report.pdf",  # Placeholder
+                "file_url": report.file_url,
                 "study_date": report.study_date.isoformat(),
                 "created_at": datetime.now(UTC).isoformat(),
             }

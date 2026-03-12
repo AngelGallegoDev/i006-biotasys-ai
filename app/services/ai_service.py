@@ -124,8 +124,6 @@ class AIService:
             try:
                 logger.info(f"Normalizing raw laboratory JSON using {self.extractor_model}")
     
-                # import json
-    
                 microbiota_input_schema = MicrobiotaInput.model_json_schema()
     
                 system_instruction = (
