@@ -99,12 +99,14 @@ class ReportService:
             
             # STEP 3: Construir el objeto reporte
             report = AnalysisReport(
+                study_id=request.study_id,
                 study_code=request.study_code,
                 nutricionist_id=request.nutricionist_id,
                 patient_id=request.patient_id,
                 data=microbiota_data,
                 interpretation=microbiota_interpretation,
-                study_date=request.study_date.isoformat()
+                file_url="https://example.com/report.pdf",  # Placeholder
+                study_date=request.study_date.isoformat(),
             )
             
             # STEP 4: Persistence in database
@@ -120,7 +122,7 @@ class ReportService:
             pdf_url = await self.repository.upload_pdf_to_storage(pdf_bytes, pdf_filename)
 
             # STEP 7: Callback to Backend Nest
-            await self.post_to_backend_nest(validated_report)
+            await self.post_to_backend_nest(validated_report, report.study_id)
 
             # Devolver el reporte y el PDF codificado
             return {
@@ -134,18 +136,14 @@ class ReportService:
             # If it's already a BiotasysException, let it bubble up to the controller
             raise e
 
-    
-    async def post_to_backend_nest(self, validated_report: AnalysisReportDB):
+    async def post_to_backend_nest(self, validated_report: AnalysisReportDB, study_id: str) -> None:
         """Envía el reporte generado al Backend Nest vía POST."""
 
         if not settings.backend_nest_url:
-            logger.error("Backend Nest URL is not configured in settings")
+            logger.error("Backend Nest URL is not defined")
             return
         
-        # TESTEADA CON ÉXITO EN WEBHOOK.SITE USANDO DE EJEMPLO BACKEND_NEST_URL=https://webhook.site/a2ce5f7f-5690-47ef-9b5e-1bb265df3b06
-        # Todavía por implementar el funcionamiento con el UUID del estudio en Backend Nest
-        callback_url = f"{settings.backend_nest_url}/studies/{validated_report.id}/processing-result"
-        logger.info(f"Callback URL: {callback_url}")
+        callback_url = f"{settings.backend_nest_url}/studies/{study_id}/processing-result"
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -157,6 +155,7 @@ class ReportService:
                         "X-API-KEY": settings.jwt_secret_key,
                     },
                 )
+                logger.info(f"Callback to Backend Nest successful for url: {callback_url}")
 
         except Exception as e:
             # Log pero NO re-lanzar: el reporte ya se guardó, el callback es best-effort

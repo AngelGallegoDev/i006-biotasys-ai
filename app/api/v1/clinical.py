@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Security
 from typing import Any
 
-from app.models.schemas import JsonAnalysisRequest, AnalysisRequest, AnalysisReportWithPDF, ErrorResponse,AnalysisReport
+from app.models.schemas import JsonAnalysisRequest, AnalysisRequest, AnalysisReport, AnalysisReportDB, ErrorResponse
 from app.services.report_service import ReportService, report_service
 from app.core.logging import get_logger
 from app.core.exceptions import ResourceNotFoundError
@@ -48,7 +48,7 @@ async def process_microbiota_document(
     
 @router.post(
     "/process-report-json",
-    response_model=AnalysisReportWithPDF,
+    response_model=AnalysisReportDB,
     responses={
         422: {"model": ErrorResponse},
         401: {"model": ErrorResponse}, # Unauthorized

@@ -304,6 +304,7 @@ class AnalysisRequest(BaseModel):
 class JsonAnalysisRequest(BaseModel):
     """Esquema de petición de análisis de Backend Nest"""
 
+    study_id: str = Field(..., description="Unique identifier for the study")
     study_code: str = Field(..., description="Study code associated with the report")
     nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
     patient_id: str = Field(..., description="Patient associated with the report")
@@ -423,21 +424,25 @@ class MicrobiotaInterpretation(BaseModel):
 class AnalysisReport(BaseModel):
     """Esquema final que se va a guardar en la base de datos y retornar a Backend Nest"""
     
+    study_id: str = Field(..., description="Unique identifier for the study")
     study_code: str = Field(..., description="Study code associated with the report")
     nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
     patient_id: str = Field(..., description="Patient associated with the report")
     data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
+    file_url: str = Field(..., description="URL from the generated PDF report")
     study_date: datetime = Field(..., description="Date when the study was created")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Timestamp when the report was created")
 
 class AnalysisReportDB(BaseModel):
-    id: str = Field(..., description="Unique identifier for the report in the database")
+    """Esquema del informe a entregar después de guardar en la base de datos"""
+
     study_code: str = Field(..., description="Study code associated with the report")
     nutricionist_id: str = Field(..., description="Nutritionist information for validation and association")
     patient_id: str = Field(..., description="Patient associated with the report")
     data: MicrobiotaInput = Field(..., description="Extracted microbiota data")
     interpretation: MicrobiotaInterpretation = Field(..., description="Interpreted microbiota data")
+    file_url: str = Field(..., description="URL from the generated PDF report")
     study_date: str = Field(..., description="Date when the study was created")
     created_at: str = Field(..., description="Timestamp when the report was created")
 
