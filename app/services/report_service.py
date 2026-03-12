@@ -1,3 +1,4 @@
+import base64
 from datetime import UTC, datetime
 from typing import Any
 
@@ -8,6 +9,7 @@ from app.core.exceptions import AIError
 from app.config.settings import settings
 from app.models.schemas import AnalysisReportDB, AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport  #NutricionistInfo, PatientInfo
 from app.repositories.report_repository import AnalysisReportDict, ReportRepository
+from app.services.pdf_service import pdf_service
 from app.services.ai_service import AIService, ai_service
 
 logger = get_logger(__name__)
@@ -76,10 +78,10 @@ class ReportService:
             raise e
 
     
-    async def process_json_save_and_send(self, request: JsonAnalysisRequest) -> AnalysisReport: 
+    async def process_json_save_and_send(self, request: JsonAnalysisRequest) -> AnalysisReportDB: 
         """
         Biotasys JSON Input pipeline:
-        Interpretación directa con Gemini 3 Pro para obtener el análisis clínico.
+        Interpretación directa con Gemini 3 Pro para obtener el análisis clínico y PDF visual.
         """
         try:
             logger.info("Processing JSON raw input")
@@ -94,8 +96,8 @@ class ReportService:
             
             # STEP 2: Expert Interpretation (Gemini 3 Pro)
             microbiota_interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
-        
-            # STEP 3: Persistence in database
+            
+            # STEP 3: Construir el objeto reporte INICIAL (sin file_url aún)
             report = AnalysisReport(
                 study_id=request.study_id,
                 study_code=request.study_code,
@@ -103,22 +105,36 @@ class ReportService:
                 patient_id=request.patient_id,
                 data=microbiota_data,
                 interpretation=microbiota_interpretation,
-                file_url="https://example.com/report.pdf",  # Placeholder
+                file_url="",  # Se llenará en el siguiente paso
                 study_date=request.study_date.isoformat(),
             )
+            
+            # STEP 4: Generar el PDF visual en memoria usando el reporte
+            pdf_buffer = pdf_service.generate_microbiota_pdf(report)
+            pdf_filename = f"microbiota_{report.study_code}.pdf"
 
+            # STEP 5: Subir PDF a Storage y obtener la URL
+            pdf_bytes = pdf_buffer.getvalue() 
+            pdf_url = await self.repository.upload_pdf_to_storage(pdf_bytes, pdf_filename)
+
+            # Actualizar el reporte con la URL real
+            report.file_url = pdf_url
+            
+            # STEP 6: Persistence in database
             saved_report = await self.repository.save_json_report(report, request)
             validated_report = AnalysisReportDB.model_validate(saved_report)
 
-            # STEP 4: Callback to Backend Nest
+            # STEP 7: Callback to Backend Nest
             await self.post_to_backend_nest(validated_report, report.study_id)
 
+            # Devolver el reporte codificado
             return validated_report
-        
+            
         except Exception as e:
             logger.error(f"JSON pipeline failed: {str(e)}")
             # If it's already a BiotasysException, let it bubble up to the controller
             raise e
+
 
     async def post_to_backend_nest(self, validated_report: AnalysisReportDB, study_id: str) -> None:
         """Envía el reporte generado al Backend Nest vía POST."""

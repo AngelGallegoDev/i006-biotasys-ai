@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Informe - {{ study_code }}</title>
+    <style>
+        @page {
+            size: a4;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11pt;
+            color: #333333;
+            line-height: 1.3;
+        }
+        h1 { color: #2c5aa0; font-size: 22pt; margin: 0; padding: 0; }
+        h2 { color: #2c5aa0; font-size: 16pt; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; }
+        h3 { color: #2c5aa0; font-size: 12pt; margin: 0 0 5px 0; }
+        
+        .subtitle { color: #666666; font-size: 12pt; margin-bottom: 20px; }
+        
+        /* Layout con tablas para máxima compatibilidad xhtml2pdf */
+        .layout-table { width: 100%; margin-bottom: 20px; }
+        .layout-td { padding: 10px; background-color: #f8f9fa; border: 1px solid #eeeeee; }
+        .layout-gap { width: 20px; }
+        
+        .metric-table { width: 100%; margin-bottom: 20px; text-align: center; }
+        .metric-box { background-color: #ffffff; border: 1px solid #dddddd; padding: 15px; }
+        .metric-val { font-size: 20pt; font-weight: bold; color: #2c5aa0; }
+        .metric-lbl { font-size: 9pt; color: #666666; }
+        
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .data-table th, .data-table td { padding: 8px; text-align: left; border-bottom: 1px solid #dddddd; }
+        .data-table th { background-color: #f0f4f8; font-weight: bold; }
+        
+        .highlight-high { background-color: #fff3cd; }
+        .highlight-low { background-color: #e2f3f5; }
+        
+        .badge { padding: 3px 8px; border-radius: 10px; font-weight: bold; font-size: 9pt; }
+        .tag-blue { background-color: #cce5ff; color: #004085; }
+        
+        .card { background-color: #f8f9fa; padding: 15px; margin-bottom: 15px; border-left: 3px solid #2c5aa0; }
+        .footer { text-align: center; font-size: 8pt; color: #999999; margin-top: 30px; border-top: 1px solid #dddddd; padding-top: 10px; }
+        
+        
+    </style>
+</head>
+<body>
+
+    <div style="text-align: center; border-bottom: 2px solid #2c5aa0; padding-bottom: 10px; margin-bottom: 20px;">
+        <h1>Informe Clínico de Microbiota Intestinal</h1>
+        <div class="subtitle">Análisis Bioinformático Avanzado</div>
+    </div>
+
+    <!-- Info del Estudio (Tabla) -->
+    <table class="layout-table">
+        <tr>
+            <td class="layout-td">
+                <h3>Datos del Estudio</h3>
+                <strong>Código:</strong> {{ study_code }}<br>
+                <strong>Fecha:</strong> {{ study_date }}<br>
+                <strong>Paciente:</strong> {{ patient_info.id or patient_id|default('N/D') }}
+            </td>
+            <td class="layout-gap"></td>
+            <td class="layout-td">
+                <h3>Profesional</h3>
+                <strong>Nutricionista:</strong> {{ nutricionist_info.name or nutricionist_id|default('N/D') }}<br>
+                <strong>Generado:</strong> {{ generated_at }}
+            </td>
+        </tr>
+    </table>
+
+        <!-- Métricas (Tabla) -->
+    <table class="metric-table">
+        <tr>
+            <!-- Riesgo Global: Usamos bgcolor y etiqueta <font> para esquivar el parser de CSS -->
+            <td class="metric-box" bgcolor="{{ risk_color_bg }}">
+                <div class="metric-val">
+                    <font color="{{ risk_color_text }}">{{ final_observations.risk_score|default('0')|int }}</font>
+                </div>
+                <div class="metric-lbl">
+                    <font color="{{ risk_color_text }}">Riesgo Global</font>
+                </div>
+                <div style="font-weight: bold; font-size: 9pt; margin-top: 5px;">
+                    <font color="{{ risk_color_text }}">{{ final_observations.global_indicator|default('N/D') }}</font>
+                </div>
+            </td>
+            <td class="layout-gap"></td>
+            
+            <!-- Shannon -->
+            <td class="metric-box">
+                <div class="metric-val">{{ "%.1f"|format(general_summary.shannon_index|default(0)) }}</div>
+                <div class="metric-lbl">Índice Shannon<br><i>{{ general_summary.shannon_range|default('N/D') }}</i></div>
+            </td>
+            <td class="layout-gap"></td>
+            
+            <!-- Ratio FB -->
+            <td class="metric-box">
+                <div class="metric-val">{{ "%.1f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
+                <div class="metric-lbl">Ratio F/B<br><i>{{ general_summary.firmicutes_bacteroidetes_range|default('N/D') }}</i></div>
+            </td>
+            <td class="layout-gap"></td>
+            
+            <!-- Phyla count -->
+            <td class="metric-box">
+                <div class="metric-val">{{ taxonomy.phyla|length if taxonomy.phyla else 0 }}</div>
+                <div class="metric-lbl">Filos Detectados</div>
+            </td>
+        </tr>
+    </table>
+
+            
+            <!-- Shannon -->
+            <td class="metric-box">
+                <div class="metric-val">{{ "%.1f"|format(general_summary.shannon_index|default(0)) }}</div>
+                <div class="metric-lbl">Índice Shannon<br><i>{{ general_summary.shannon_range|default('N/D') }}</i></div>
+            </td>
+            <td class="layout-gap"></td>
+            
+            <!-- Ratio FB -->
+            <td class="metric-box">
+                <div class="metric-val">{{ "%.1f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
+                <div class="metric-lbl">Ratio F/B<br><i>{{ general_summary.firmicutes_bacteroidetes_range|default('N/D') }}</i></div>
+            </td>
+            <td class="layout-gap"></td>
+            
+            <!-- Phyla count -->
+            <td class="metric-box">
+                <div class="metric-val">{{ taxonomy.phyla|length if taxonomy.phyla else 0 }}</div>
+                <div class="metric-lbl">Filos Detectados</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Resumen -->
+    <h2>Resumen Ejecutivo</h2>
+    <p style="font-style: italic;">{{ general_summary.summary|default('Sin resumen disponible') }}</p>
+    <p>
+        {% for tag in general_summary.summary_tags %}
+            <span class="badge tag-blue">{{ tag }}</span>&nbsp;
+        {% endfor %}
+    </p>
+
+    <!-- Composición -->
+    {% if taxonomy.phyla %}
+    <h2>Composición Taxonómica</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="25%">Filo</th>
+                <th width="15%">Abundancia</th>
+                <th width="60%">Interpretación Clínica</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for phylum in taxonomy.phyla[:6] %}
+            <tr class="{% if phylum.abundance > 30 %}highlight-high{% elif phylum.abundance < 5 %}highlight-low{% endif %}">
+                <td><strong>{{ phylum.name }}</strong></td>
+                <td>{{ "%.1f"|format(phylum.abundance) }}%</td>
+                <td>{{ bacterial_composition|selectattr('gender', 'equalto', phylum.name)|map(attribute='clinical_implication')|first|default('Evaluación en progreso') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Diversidad -->
+    <h2>Diversidad Ecológica</h2>
+    {% for diversity in bacterial_diversity %}
+    <div class="card">
+        <h3>{{ diversity.diversity_headline }}</h3>
+        <p style="margin-bottom: 0;">{{ diversity.clinical_implication }}</p>
+    </div>
+    {% endfor %}
+
+    <!-- Conclusiones -->
+    <h2>Conclusiones y Recomendaciones</h2>
+    <p>{{ final_observations.conclusions }}</p>
+
+    <!-- Footer -->
+    <div class="footer">
+        Generado por Biotasys Engine v1.2.1 | Análisis automatizado con IA bioinformática
+    </div>
+
+</body>
+</html>
