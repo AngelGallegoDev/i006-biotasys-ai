@@ -263,8 +263,6 @@ class AIService:
                 "=== OUTPUT ===\n"
                 "Devuelve únicamente JSON válido compatible con el schema indicado."
             )
-                #Ver que esta recibiendo el modelo
-            logger.debug("INTERPRETATION PROMPT:\n%s", prompt)
 
             response = await self.client.aio.models.generate_content(
                 model=self.interpreter_model,

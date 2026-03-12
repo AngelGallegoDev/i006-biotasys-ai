@@ -7,10 +7,11 @@ import httpx
 from app.core.logging import get_logger
 from app.core.exceptions import AIError
 from app.config.settings import settings
-from app.models.schemas import AnalysisReportDB, AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport  #NutricionistInfo, PatientInfo
+from app.models.schemas import AnalysisReportDB, AnalysisRequest, JsonAnalysisRequest, MicrobiotaInput, MicrobiotaReport, AnalysisReport
 from app.repositories.report_repository import AnalysisReportDict, ReportRepository
 from app.services.pdf_service import pdf_service
 from app.services.ai_service import AIService, ai_service
+from app.services.microbiota_normalizer import prenormalize_microbiota
 
 logger = get_logger(__name__)
 
@@ -81,20 +82,22 @@ class ReportService:
     async def process_json_save_and_send(self, request: JsonAnalysisRequest) -> AnalysisReportDB: 
         """
         Biotasys JSON Input pipeline:
-        Interpretación directa con Gemini 3 Pro para obtener el análisis clínico y PDF visual.
         """
         try:
             logger.info("Processing JSON raw input")
             
-            # STEP 1: Normalize raw_json into AnalysisRequest (if not already)            
+            # STEP 1: Normalize raw_json into AnalysisRequest (if not already) 
+
+            normalized_json = prenormalize_microbiota(request.raw_json)
+
             try:
-                microbiota_data = MicrobiotaInput.model_validate(request.raw_json)
+                microbiota_data = MicrobiotaInput.model_validate(normalized_json)
                 logger.info("Input data validated as MicrobiotaInput structure")
             except Exception as e:
-                logger.info(f"Input data is unstructured or has field mismatches. Normalizing via AI")
-                microbiota_data = await self.ai.analyze_laboratory_json(request.raw_json)
+                logger.info(f"Fallback: Normalizing via AI due to validation error: {str(e)}")
+                microbiota_data = await self.ai.analyze_laboratory_json(normalized_json)
             
-            # STEP 2: Expert Interpretation (Gemini 3 Pro)
+            # STEP 2: Expert Interpretation 
             microbiota_interpretation = await self.ai.interpret_microbiota_data(microbiota_data)
             
             # STEP 3: Construir el objeto reporte INICIAL (sin file_url aún)
@@ -105,7 +108,7 @@ class ReportService:
                 patient_id=request.patient_id,
                 data=microbiota_data,
                 interpretation=microbiota_interpretation,
-                file_url="",  # Se llenará en el siguiente paso
+                file_url="", 
                 study_date=request.study_date.isoformat(),
             )
             
