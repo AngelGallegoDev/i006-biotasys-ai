@@ -191,7 +191,7 @@ class AIService:
             logger.info(f"Interpreting microbiota data using {self.interpreter_model}")
 
             # Convert Pydantic model -> JSON limpio
-            microbiota_dict = microbiota_data.model_dump()
+            microbiota_dict = microbiota_data.model_dump(mode="json")
 
             microbiota_json = json.dumps(
                 microbiota_dict,

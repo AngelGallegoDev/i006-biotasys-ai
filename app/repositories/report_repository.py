@@ -24,11 +24,13 @@ class ReportDict(TypedDict):
 
 class AnalysisReportDict(TypedDict):
     id: str
+    study_id: str
     study_code: str
     nutricionist_id: str
     patient_id: str
     data: MicrobiotaInput
     interpretation: MicrobiotaInterpretation
+    file_url: str
     study_date: str
     created_at: str
     
@@ -95,16 +97,18 @@ class ReportRepository(BaseRepository):
         try:
             data: AnalysisReportDict = {
                 "id": report_id,
+                "study_id": report.study_id,
                 "study_code": report.study_code,
                 "nutricionist_id": report.nutricionist_id,
                 "patient_id": report.patient_id,
                 "data": report.data.model_dump(mode="json"),
                 "interpretation": report.interpretation.model_dump(mode="json"),
+                "file_url": "https://example.com/report.pdf",  # Placeholder
                 "study_date": report.study_date.isoformat(),
                 "created_at": datetime.now(UTC).isoformat(),
             }
 
-            result = await asyncio.to_thread(
+            db_result = await asyncio.to_thread(
                 lambda: self.client
                     .table("analysis_reports")
                     .insert(data)
@@ -116,10 +120,13 @@ class ReportRepository(BaseRepository):
                 f"Study:{report.study_code} Patient:{report.patient_id[:8]}"
             )
             
-            if not result.data:
+            if not db_result.data:
                 raise DatabaseError("Insert succeeded but returned no data")
 
-            return cast(AnalysisReportDict, result.data[0])
+            result = db_result.data[0]
+            result.pop("id", None)
+            result.pop("study_id", None)
+            return result
 
         except Exception as e:
             logger.error(f"❌ Error saving JSON report {report_id}: {str(e)}")
