@@ -9,9 +9,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including build tools and Cairo for xhtml2pdf/pycairo)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    build-essential \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf-xlib-2.0-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency resolution
