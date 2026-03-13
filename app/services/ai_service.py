@@ -226,8 +226,15 @@ class AIService:
                 "en bacterial_composition.\n"
                 "- El campo firmicutes_bacteroidetes_ratio debe copiar el valor del input si existe.\n"
                 "- No ignores valores existentes.\n"
-                "- No inventes datos.\n\n"
+                "- No inventes datos.\n"
+                "- NUNCA incluyas el patient_id ni identificadores del paciente en general_summary.summary.\n\n"
 
+                "LÍMITES DE LISTAS:\n"
+                "- bacterial_diversity: EXACTAMENTE 3 items.\n"
+                "- bacterial_composition: MÁXIMO 5 items (los más relevantes clínicamente).\n"
+                "- opportunistic_microorganisms: MÁXIMO 5 items (los más relevantes clínicamente).\n"
+                "- inferred_metabolic_functions: MÁXIMO 5 items (las más relevantes clínicamente).\n\n"
+                
                 "CLASIFICACIONES:\n"
                 "Firmicutes/Bacteroidetes ratio:\n"
                 "- Bajo <1.0\n"
