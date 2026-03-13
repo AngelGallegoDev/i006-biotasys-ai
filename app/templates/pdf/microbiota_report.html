@@ -2,185 +2,258 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Informe - {{ study_code }}</title>
+    <title>Informe de Microbiota - {{ study_code }}</title>
     <style>
         @page {
-            size: a4;
-            margin: 1.5cm;
+            size: A4;
+            margin-top: 1.5cm;
+            margin-bottom: 2cm;
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+            /* Footer repetitivo en todas las páginas */
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                left: 1.5cm;
+                right: 1.5cm;
+                bottom: 1cm;
+                height: 1cm;
+            }
         }
+        
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 11pt;
+            font-size: 10pt;
             color: #333333;
-            line-height: 1.3;
+            line-height: 1.4;
         }
-        h1 { color: #2c5aa0; font-size: 22pt; margin: 0; padding: 0; }
-        h2 { color: #2c5aa0; font-size: 16pt; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; }
-        h3 { color: #2c5aa0; font-size: 12pt; margin: 0 0 5px 0; }
         
-        .subtitle { color: #666666; font-size: 12pt; margin-bottom: 20px; }
+        .header-title {
+            color: #666666;
+            font-size: 11pt;
+            margin-bottom: 20px;
+        }
         
-        /* Layout con tablas para máxima compatibilidad xhtml2pdf */
-        .layout-table { width: 100%; margin-bottom: 20px; }
-        .layout-td { padding: 10px; background-color: #f8f9fa; border: 1px solid #eeeeee; }
-        .layout-gap { width: 20px; }
+        /* Layout Tables */
+        .info-table { width: 100%; margin-bottom: 20px; }
+        .info-label { font-size: 9pt; color: #666666; margin-bottom: 2px; }
+        .info-value { font-size: 11pt; font-weight: bold; color: #1a1a1a; }
         
-        .metric-table { width: 100%; margin-bottom: 20px; text-align: center; }
-        .metric-box { background-color: #ffffff; border: 1px solid #dddddd; padding: 15px; }
-        .metric-val { font-size: 20pt; font-weight: bold; color: #2c5aa0; }
-        .metric-lbl { font-size: 9pt; color: #666666; }
-        
+        .tags-table { margin-bottom: 20px; }
+        .tag-cell {
+            background-color: #e6f2e6;
+            color: #2d7a3a;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 9pt;
+            font-weight: bold;
+            text-align: center;
+        }
+        .tag-gap { width: 10px; }
+
+        h2 {
+            color: #1a1a1a;
+            font-size: 13pt;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .summary-text {
+            font-size: 10pt;
+            color: #444444;
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        /* Tarjetas de métricas simuladas con tablas */
+        .grid-table { width: 100%; margin-bottom: 20px; }
+        .metric-card {
+            background-color: #f8f9fa;
+            border-left: 3px solid #2c5aa0;
+            padding: 12px;
+        }
+        .metric-value { font-size: 14pt; font-weight: bold; color: #2c5aa0; margin-bottom: 2px; }
+        .metric-title { font-size: 10pt; font-weight: bold; color: #333; }
+        .metric-desc { font-size: 9pt; color: #666; }
+
+        /* Tablas de Datos limpias (Página 2) */
         .data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .data-table th, .data-table td { padding: 8px; text-align: left; border-bottom: 1px solid #dddddd; }
-        .data-table th { background-color: #f0f4f8; font-weight: bold; }
+        .data-table th {
+            text-align: left;
+            padding: 8px 0;
+            border-bottom: 1px solid #999;
+            font-size: 10pt;
+            color: #333;
+            font-weight: bold;
+        }
+        .data-table td {
+            padding: 8px 0;
+            border-bottom: 1px solid #eeeeee;
+            font-size: 10pt;
+            vertical-align: top;
+        }
         
-        .highlight-high { background-color: #fff3cd; }
-        .highlight-low { background-color: #e2f3f5; }
-        
-        .badge { padding: 3px 8px; border-radius: 10px; font-weight: bold; font-size: 9pt; }
-        .tag-blue { background-color: #cce5ff; color: #004085; }
-        
-        .card { background-color: #f8f9fa; padding: 15px; margin-bottom: 15px; border-left: 3px solid #2c5aa0; }
-        .footer { text-align: center; font-size: 8pt; color: #999999; margin-top: 30px; border-top: 1px solid #dddddd; padding-top: 10px; }
-        
-        
+        .row-title { font-weight: bold; color: #1a1a1a; }
+        .row-subtitle { color: #666; font-size: 9pt; margin-top: 2px; }
+
+        .footer {
+            font-size: 8pt;
+            color: #999;
+            text-align: right;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <div style="text-align: center; border-bottom: 2px solid #2c5aa0; padding-bottom: 10px; margin-bottom: 20px;">
-        <h1>Informe Clínico de Microbiota Intestinal</h1>
-        <div class="subtitle">Análisis Bioinformático Avanzado</div>
+    <!-- Este es el Footer que se inyecta mágicamente en el borde inferior de CADA página -->
+    <div id="footer_content">
+        <div class="footer">
+            Generado por Biotasys Engine v1.2.1 | Estudio: {{ study_code }} | Página <pdf:pagenumber /> de <pdf:pagecount />
+        </div>
     </div>
 
-    <!-- Info del Estudio (Tabla) -->
-    <table class="layout-table">
+    <!-- PÁGINA 1 -->
+    <div class="header-title">Informe de microbiota intestinal provisto por Biotasys Engine</div>
+
+    <!-- Datos del Paciente en Fila -->
+    <table class="info-table">
         <tr>
-            <td class="layout-td">
-                <h3>Datos del Estudio</h3>
-                <strong>Código:</strong> {{ study_code }}<br>
-                <strong>Fecha:</strong> {{ study_date }}<br>
-                <strong>Paciente:</strong> {{ patient_info.id or patient_id|default('N/D') }}
+            <td width="33%">
+                <div class="info-label">Paciente:</div>
+                <div class="info-value">{{ patient_info.id or patient_id|default('N/D') }}</div>
             </td>
-            <td class="layout-gap"></td>
-            <td class="layout-td">
-                <h3>Profesional</h3>
-                <strong>Nutricionista:</strong> {{ nutricionist_info.name or nutricionist_id|default('N/D') }}<br>
-                <strong>Generado:</strong> {{ generated_at }}
+            <td width="33%">
+                <div class="info-label">Estudio:</div>
+                <div class="info-value">{{ study_code }}</div>
+            </td>
+            <td width="33%">
+                <div class="info-label">Análisis:</div>
+                <div class="info-value">{{ study_date }}</div>
             </td>
         </tr>
     </table>
 
-        <!-- Métricas (Tabla) -->
-    <table class="metric-table">
+    <!-- Etiquetas (Tags) de Estado -->
+    <table class="tags-table">
         <tr>
-            <!-- Riesgo Global: Usamos bgcolor y etiqueta <font> para esquivar el parser de CSS -->
-            <td class="metric-box" bgcolor="{{ risk_color_bg }}">
-                <div class="metric-val">
-                    <font color="{{ risk_color_text }}">{{ final_observations.risk_score|default('0')|int }}</font>
-                </div>
-                <div class="metric-lbl">
-                    <font color="{{ risk_color_text }}">Riesgo Global</font>
-                </div>
-                <div style="font-weight: bold; font-size: 9pt; margin-top: 5px;">
-                    <font color="{{ risk_color_text }}">{{ final_observations.global_indicator|default('N/D') }}</font>
+            {% for tag in (general_summary.summary_tags or [])[:4] %}
+            <td class="tag-cell">{{ tag }}</td>
+            <td class="tag-gap"></td>
+            {% endfor %}
+            <!-- Aquí usamos el riesgo dinámico de tu pdf_service.py -->
+            <td class="tag-cell" style="background-color: {{ risk_color_bg }}; color: {{ risk_color_text }};">{{ final_observations.global_indicator|default('N/D') }}</td>
+        </tr>
+    </table>
+
+    <h2>Resumen general</h2>
+    <div class="summary-text">
+        {{ general_summary.summary|default('Sin resumen disponible') }}
+    </div>
+
+    <!-- Tarjetas de Índices -->
+    <table class="grid-table">
+        <tr>
+            <td width="48%">
+                <div class="metric-card">
+                    <div class="metric-title">{{ general_summary.shannon_range|default('Diversidad') }}</div>
+                    <div class="metric-value">{{ "%.2f"|format(general_summary.shannon_index|default(0)) }}</div>
+                    <div class="metric-desc">Diversidad alfa (Shannon)</div>
                 </div>
             </td>
-            <td class="layout-gap"></td>
-            
-            <!-- Shannon -->
-            <td class="metric-box">
-                <div class="metric-val">{{ "%.1f"|format(general_summary.shannon_index|default(0)) }}</div>
-                <div class="metric-lbl">Índice Shannon<br><i>{{ general_summary.shannon_range|default('N/D') }}</i></div>
-            </td>
-            <td class="layout-gap"></td>
-            
-            <!-- Ratio FB -->
-            <td class="metric-box">
-                <div class="metric-val">{{ "%.1f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
-                <div class="metric-lbl">Ratio F/B<br><i>{{ general_summary.firmicutes_bacteroidetes_range|default('N/D') }}</i></div>
-            </td>
-            <td class="layout-gap"></td>
-            
-            <!-- Phyla count -->
-            <td class="metric-box">
-                <div class="metric-val">{{ taxonomy.phyla|length if taxonomy.phyla else 0 }}</div>
-                <div class="metric-lbl">Filos Detectados</div>
+            <td width="4%"></td>
+            <td width="48%">
+                <div class="metric-card" style="border-left-color: #28a745;">
+                    <div class="metric-title">{{ general_summary.firmicutes_bacteroidetes_range|default('Ratio') }}</div>
+                    <div class="metric-value">{{ "%.2f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
+                    <div class="metric-desc">F/B Ratio</div>
+                </div>
             </td>
         </tr>
     </table>
 
-            
-            <!-- Shannon -->
-            <td class="metric-box">
-                <div class="metric-val">{{ "%.1f"|format(general_summary.shannon_index|default(0)) }}</div>
-                <div class="metric-lbl">Índice Shannon<br><i>{{ general_summary.shannon_range|default('N/D') }}</i></div>
-            </td>
-            <td class="layout-gap"></td>
-            
-            <!-- Ratio FB -->
-            <td class="metric-box">
-                <div class="metric-val">{{ "%.1f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
-                <div class="metric-lbl">Ratio F/B<br><i>{{ general_summary.firmicutes_bacteroidetes_range|default('N/D') }}</i></div>
-            </td>
-            <td class="layout-gap"></td>
-            
-            <!-- Phyla count -->
-            <td class="metric-box">
-                <div class="metric-val">{{ taxonomy.phyla|length if taxonomy.phyla else 0 }}</div>
-                <div class="metric-lbl">Filos Detectados</div>
-            </td>
+    <h2>Diversidad y riqueza</h2>
+    <table class="data-table">
+        {% for diversity in (bacterial_diversity or []) %}
+        <tr>
+            <td width="40%" class="row-title">{{ diversity.diversity_headline }}</td>
+            <td width="60%">{{ diversity.clinical_implication }}</td>
         </tr>
-    </table>
-
-    <!-- Resumen -->
-    <h2>Resumen Ejecutivo</h2>
-    <p style="font-style: italic;">{{ general_summary.summary|default('Sin resumen disponible') }}</p>
-    <p>
-        {% for tag in general_summary.summary_tags %}
-            <span class="badge tag-blue">{{ tag }}</span>&nbsp;
+        {% else %}
+        <tr><td colspan="2">Sin datos detallados de diversidad.</td></tr>
         {% endfor %}
-    </p>
+    </table>
 
-    <!-- Composición -->
-    {% if taxonomy.phyla %}
-    <h2>Composición Taxonómica</h2>
+    <h2>Microorganismos oportunistas</h2>
+    <table class="data-table">
+        {% for bug in (opportunistic_microorganisms or []) %}
+        <tr>
+            <td width="35%">
+                <div class="row-title">{{ bug.microorganism }}</div>
+                <div class="row-subtitle">Abundancia: {{ bug.abundance_status }}</div>
+            </td>
+            <td width="65%">{{ bug.clinical_implication }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td width="40%" class="row-title">Patógenos y oportunistas</td>
+            <td width="60%">No detectados o sin proliferación anómala.</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- SALTO DE PÁGINA OBLIGATORIO (Igual al diseño del PDF 2) -->
+    <pdf:nextpage />
+
+    <!-- PÁGINA 2 -->
+    <h2>Composición bacteriana</h2>
     <table class="data-table">
         <thead>
             <tr>
-                <th width="25%">Filo</th>
-                <th width="15%">Abundancia</th>
-                <th width="60%">Interpretación Clínica</th>
+                <th width="30%">Género / Filo</th>
+                <th width="20%">Presencia</th>
+                <th width="50%">Evaluación inferida</th>
             </tr>
         </thead>
         <tbody>
-            {% for phylum in taxonomy.phyla[:6] %}
-            <tr class="{% if phylum.abundance > 30 %}highlight-high{% elif phylum.abundance < 5 %}highlight-low{% endif %}">
-                <td><strong>{{ phylum.name }}</strong></td>
+            {% for phylum in (taxonomy.phyla or []) %}
+            <tr>
+                <td class="row-title">{{ phylum.name }}</td>
                 <td>{{ "%.1f"|format(phylum.abundance) }}%</td>
-                <td>{{ bacterial_composition|selectattr('gender', 'equalto', phylum.name)|map(attribute='clinical_implication')|first|default('Evaluación en progreso') }}</td>
+                <td>{{ bacterial_composition|selectattr('gender', 'equalto', phylum.name)|map(attribute='clinical_implication')|first|default('-') }}</td>
+            </tr>
+            {% endfor %}
+            
+            {% for genus in (taxonomy.predominant_genera or []) %}
+            <tr>
+                <td class="row-title">{{ genus.name }}</td>
+                <td>{{ "%.1f"|format(genus.abundance) }}%</td>
+                <td>{{ bacterial_composition|selectattr('gender', 'equalto', genus.name)|map(attribute='clinical_implication')|first|default('-') }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% endif %}
 
-    <!-- Diversidad -->
-    <h2>Diversidad Ecológica</h2>
-    {% for diversity in bacterial_diversity %}
-    <div class="card">
-        <h3>{{ diversity.diversity_headline }}</h3>
-        <p style="margin-bottom: 0;">{{ diversity.clinical_implication }}</p>
-    </div>
-    {% endfor %}
+    <h2>Funciones metabólicas inferidas</h2>
+    <table class="data-table">
+        {% for func in (inferred_metabolic_functions or []) %}
+        <tr>
+            <td width="40%">
+                <div class="row-title">{{ func.metabolic_function }}</div>
+                <div class="row-subtitle">{{ func.activity_status }}</div>
+            </td>
+            <td width="60%">{{ func.clinical_implication }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2">Sin datos metabólicos disponibles.</td></tr>
+        {% endfor %}
+    </table>
 
-    <!-- Conclusiones -->
-    <h2>Conclusiones y Recomendaciones</h2>
-    <p>{{ final_observations.conclusions }}</p>
-
-    <!-- Footer -->
-    <div class="footer">
-        Generado por Biotasys Engine v1.2.1 | Análisis automatizado con IA bioinformática
+    <h2>Conclusiones</h2>
+    <div class="summary-text" style="background-color:#f8f9fa; padding:15px; border-radius:5px; border-left: 4px solid #4a90e2;">
+        {{ final_observations.conclusions }}
     </div>
 
 </body>
