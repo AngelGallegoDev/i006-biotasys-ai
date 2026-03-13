@@ -325,7 +325,7 @@ class GeneralSummary(BaseModel):
     """Final technical observations and conclusions based on the microbiota analysis."""
 
     summary: str = Field(
-        ..., description="Summary of the final conclusions based on the microbiota status"
+        ..., description="Summary of the final conclusions based on the microbiota status, max. 400 characters"
     )
     summary_tags: list[str] = Field(
         default_factory=list, description="Short tags summarizing the overall microbiota status (e.g. 'Dysbiosis', 'Optimal Diversity')"
@@ -352,15 +352,15 @@ class BacterialComposition(BaseModel):
     presence: str = Field(
         ..., description="Presence status of the taxonomic unit (e.g. 'Not Detected', 'Low', 'Normal', 'High')"
     )
-    clinical_implication: str = Field(..., description="Biological consequence")
+    clinical_implication: str = Field(..., description="Headline summarizing the biological consequence, max. 20 words")
 
 class BacterialDiversity(BaseModel):
     """Bacterial diversity based on taxonomic composition and diversity indices."""
 
     diversity_headline: str = Field(
-        ..., description="Summary headline for bacterial diversity status (e.g. 'Optimal Diversity', 'No extreme domination')"
+        ..., description="Short headline for bacterial diversity status (e.g. 'Optimal Diversity', 'No extreme domination')"
     )
-    clinical_implication: str = Field(..., description="Biological consequence")
+    clinical_implication: str = Field(..., description="Short headline summarizing the biological consequence, max. 10 words")
 
 class OpportunisticMicroorganisms(BaseModel):
     """Opportunistic microorganisms detected and their clinical implications."""
@@ -374,7 +374,7 @@ class OpportunisticMicroorganisms(BaseModel):
     abundance_score: int = Field(
         ..., description="Quantitative score supporting the abundance status (e.g. 0-100)"
     )
-    clinical_implication: str = Field(..., description="Biological consequence")
+    clinical_implication: str = Field(..., description="Short headline summarizing the biological consequence, max. 10 words")
 
 class InferredMetabolicFunctions(BaseModel):
     """Inferred metabolic functions based on bacterial abundance."""
@@ -388,7 +388,7 @@ class InferredMetabolicFunctions(BaseModel):
     activity_score: int = Field(
         ..., description="Quantitative score supporting the activity status (e.g. 0-100)"
     )
-    clinical_implication: str = Field(..., description="Biological consequence")
+    clinical_implication: str = Field(..., description="Short headline summarizing the biological consequence, max. 10 words")
 
 class ConclusionTags(BaseModel):
     """Tags summarizing key clinical conclusions."""
@@ -399,7 +399,7 @@ class FinalObservations(BaseModel):
     """Final technical observations and conclusions based on the microbiota analysis."""
 
     conclusions: str = Field(
-        ..., description="Summary of the final conclusions based on the microbiota status"
+        ..., description="Summary of the final conclusions based on the microbiota status, max. 400 characters"
     )
     conclusion_tags: list[str] = Field(
         default_factory=list, description="Short tags summarizing key clinical conclusions (e.g. 'Dysbiosis', 'Optimal Diversity')"

@@ -95,16 +95,6 @@ class PDFService:
             "nutricionist_info": nutricionist_info,
         }
 
-        data = report.data.model_dump()
-        context.update({
-            "metadata": data.get("metadata", {}),
-            "sequencing": data.get("sequencing", {}),
-            "diversity": data.get("diversity", {}),
-            "taxonomy": data.get("taxonomy", {}),
-            "functionality": data.get("functionality", {}),
-            "clinical_context": data.get("clinical_context", {}),
-        })
-
         interpretation = report.interpretation.model_dump()
         context.update({
             "interpretation": interpretation,

@@ -108,7 +108,7 @@
 </head>
 <body>
 
-    <!-- Este es el Footer que se inyecta mágicamente en el borde inferior de CADA página -->
+    <!-- Footer repetitivo en cada página -->
     <div id="footer_content">
         <div class="footer">
             Generado por Biotasys Engine v1.2.1 | Estudio: {{ study_code }} | Página <pdf:pagenumber /> de <pdf:pagecount />
@@ -118,7 +118,7 @@
     <!-- PÁGINA 1 -->
     <div class="header-title">Informe de microbiota intestinal provisto por Biotasys Engine</div>
 
-    <!-- Datos del Paciente en Fila -->
+    <!-- Datos del Estudio -->
     <table class="info-table">
         <tr>
             <td width="33%">
@@ -130,30 +130,45 @@
                 <div class="info-value">{{ study_code }}</div>
             </td>
             <td width="33%">
-                <div class="info-label">Análisis:</div>
+                <div class="info-label">Fecha de análisis:</div>
                 <div class="info-value">{{ study_date }}</div>
             </td>
         </tr>
     </table>
 
-    <!-- Etiquetas (Tags) de Estado -->
-    <table class="tags-table">
-        <tr>
-            {% for tag in (general_summary.summary_tags or [])[:4] %}
-            <td class="tag-cell">{{ tag }}</td>
-            <td class="tag-gap"></td>
-            {% endfor %}
-            <!-- Aquí usamos el riesgo dinámico de tu pdf_service.py -->
-            <td class="tag-cell" style="background-color: {{ risk_color_bg }}; color: {{ risk_color_text }};">{{ final_observations.global_indicator|default('N/D') }}</td>
-        </tr>
-    </table>
+    <!-- ============================================ -->
+    <!-- 1. FINAL OBSERVATIONS (sin risk_score)       -->
+    <!-- ============================================ -->
+    <h1 style="font-weight: bold; font-size: 11pt; color: {{ risk_color_text }};">
+        {{ final_observations.global_indicator|default('N/D') }}
+    </h1>
+    <div class="conclusion-box">
+        <div class="summary-text" style="margin-bottom: 10px;">
+            {{ final_observations.conclusions }}
+        </div>
+        {% if final_observations.conclusion_tags %}
+        <table class="tags-table">
+            <tr>
+                {% for tag in final_observations.conclusion_tags %}
+                <td class="tag-cell">{{ tag }}</td>
+                <td class="tag-gap"></td>
+                {% endfor %}
+            </tr>
+        </table>
+        {% endif %}
+    </div>
 
+    <!-- ============================================ -->
+    <!-- 2. GENERAL SUMMARY                           -->
+    <!-- ============================================ -->
+
+    <!-- summary -->
     <h2>Resumen general</h2>
     <div class="summary-text">
         {{ general_summary.summary|default('Sin resumen disponible') }}
     </div>
 
-    <!-- Tarjetas de Índices -->
+    <!-- shannon + F/B ratio -->
     <table class="grid-table">
         <tr>
             <td width="48%">
@@ -168,93 +183,119 @@
                 <div class="metric-card" style="border-left-color: #28a745;">
                     <div class="metric-title">{{ general_summary.firmicutes_bacteroidetes_range|default('Ratio') }}</div>
                     <div class="metric-value">{{ "%.2f"|format(general_summary.firmicutes_bacteroidetes_ratio|default(0)) }}</div>
-                    <div class="metric-desc">F/B Ratio</div>
+                    <div class="metric-desc">Ratio Firmicutes / Bacteroidetes</div>
                 </div>
             </td>
         </tr>
     </table>
 
+    <!-- summary_tags -->
+    <table class="tags-table">
+        <tr>
+            {% for tag in (general_summary.summary_tags or [])[:4] %}
+            <td class="tag-cell">{{ tag }}</td>
+            <td class="tag-gap"></td>
+            {% endfor %}
+        </tr>
+    </table>
+
+    <!-- ============================================ -->
+    <!-- 3. BACTERIAL DIVERSITY                       -->
+    <!-- ============================================ -->
     <h2>Diversidad y riqueza</h2>
     <table class="data-table">
-        {% for diversity in (bacterial_diversity or []) %}
+        {% for item in (bacterial_diversity or []) %}
         <tr>
-            <td width="40%" class="row-title">{{ diversity.diversity_headline }}</td>
-            <td width="60%">{{ diversity.clinical_implication }}</td>
+            <td width="40%" class="row-title">{{ item.diversity_headline }}</td>
+            <td width="60%">{{ item.clinical_implication }}</td>
         </tr>
         {% else %}
         <tr><td colspan="2">Sin datos detallados de diversidad.</td></tr>
         {% endfor %}
     </table>
 
-    <h2>Microorganismos oportunistas</h2>
-    <table class="data-table">
-        {% for bug in (opportunistic_microorganisms or []) %}
-        <tr>
-            <td width="35%">
-                <div class="row-title">{{ bug.microorganism }}</div>
-                <div class="row-subtitle">Abundancia: {{ bug.abundance_status }}</div>
-            </td>
-            <td width="65%">{{ bug.clinical_implication }}</td>
-        </tr>
-        {% else %}
-        <tr>
-            <td width="40%" class="row-title">Patógenos y oportunistas</td>
-            <td width="60%">No detectados o sin proliferación anómala.</td>
-        </tr>
-        {% endfor %}
-    </table>
-
-    <!-- SALTO DE PÁGINA OBLIGATORIO (Igual al diseño del PDF 2) -->
-    <pdf:nextpage />
-
-    <!-- PÁGINA 2 -->
+    <!-- ============================================ -->
+    <!-- 4. BACTERIAL COMPOSITION                     -->
+    <!-- ============================================ -->
     <h2>Composición bacteriana</h2>
     <table class="data-table">
         <thead>
             <tr>
                 <th width="30%">Género / Filo</th>
                 <th width="20%">Presencia</th>
-                <th width="50%">Evaluación inferida</th>
+                <th width="50%">Implicación clínica</th>
             </tr>
         </thead>
         <tbody>
-            {% for phylum in (taxonomy.phyla or []) %}
+            {% for item in (bacterial_composition or []) %}
             <tr>
-                <td class="row-title">{{ phylum.name }}</td>
-                <td>{{ "%.1f"|format(phylum.abundance) }}%</td>
-                <td>{{ bacterial_composition|selectattr('gender', 'equalto', phylum.name)|map(attribute='clinical_implication')|first|default('-') }}</td>
+                <td class="row-title">{{ item.gender }}</td>
+                <td>{{ item.presence }}</td>
+                <td>{{ item.clinical_implication }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="3">Sin datos de composición bacteriana.</td></tr>
             {% endfor %}
-            
-            {% for genus in (taxonomy.predominant_genera or []) %}
+        </tbody>
+    </table>
+
+    <pdf:nextpage />
+
+    <!-- PÁGINA 2 -->
+
+    <!-- ============================================ -->
+    <!-- 5. OPPORTUNISTIC MICROORGANISMS              -->
+    <!-- ============================================ -->
+    <h2>Microorganismos oportunistas</h2>
+    <table class="data-table">
+        <thead>
             <tr>
-                <td class="row-title">{{ genus.name }}</td>
-                <td>{{ "%.1f"|format(genus.abundance) }}%</td>
-                <td>{{ bacterial_composition|selectattr('gender', 'equalto', genus.name)|map(attribute='clinical_implication')|first|default('-') }}</td>
+                <th width="25%">Microorganismo</th>
+                <th width="20%">Abundancia</th>
+                <th width="55%">Implicación clínica</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in (opportunistic_microorganisms or []) %}
+            <tr>
+                <td class="row-title">{{ item.microorganism }}</td>
+                <td>{{ item.abundance_status }}</td>
+                <td>{{ item.clinical_implication }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3">No se detectaron microorganismos oportunistas con proliferación anómala.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
+    <!-- ============================================ -->
+    <!-- 6. INFERRED METABOLIC FUNCTIONS              -->
+    <!-- ============================================ -->
     <h2>Funciones metabólicas inferidas</h2>
     <table class="data-table">
-        {% for func in (inferred_metabolic_functions or []) %}
-        <tr>
-            <td width="40%">
-                <div class="row-title">{{ func.metabolic_function }}</div>
-                <div class="row-subtitle">{{ func.activity_status }}</div>
-            </td>
-            <td width="60%">{{ func.clinical_implication }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="2">Sin datos metabólicos disponibles.</td></tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th width="25%">Función metabólica</th>
+                <th width="15%">Estado</th>
+                <th width="10%">Score</th>
+                <th width="50%">Implicación clínica</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in (inferred_metabolic_functions or []) %}
+            <tr>
+                <td class="row-title">{{ item.metabolic_function }}</td>
+                <td>{{ item.activity_status }}</td>
+                <td>{{ item.activity_score }}</td>
+                <td>{{ item.clinical_implication }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">Sin datos metabólicos disponibles.</td></tr>
+            {% endfor %}
+        </tbody>
     </table>
-
-    <h2>Conclusiones</h2>
-    <div class="summary-text" style="background-color:#f8f9fa; padding:15px; border-radius:5px; border-left: 4px solid #4a90e2;">
-        {{ final_observations.conclusions }}
-    </div>
 
 </body>
 </html>
