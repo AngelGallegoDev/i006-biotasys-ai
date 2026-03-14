@@ -4,7 +4,8 @@ FROM python:3.12-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PORT=8000
 
 # Set work directory
 WORKDIR /app
@@ -27,8 +28,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies
-# --frozen ensures we use the exact versions from uv.lock
-# --no-install-project avoids installing the package itself yet (just deps)
+# Use the lockfile for deterministic builds in Render
 RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy the rest of the application code
@@ -41,5 +41,5 @@ RUN uv sync --frozen --no-dev
 EXPOSE 8000
 
 # Command to run the application
-# Use 'uv run' to execute in the virtual environment created by uv sync
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render injects PORT at runtime; default to 8000 outside Render
+CMD ["sh", "-c", "uv run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

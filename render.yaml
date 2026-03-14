@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: i006-biotasys-ai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: APP_NAME
+        value: Biotasys AI
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: EXTRACTION_MODEL
+        value: gemini-2.5-flash-lite
+      - key: INTERPRETATION_MODEL
+        value: gemini-2.5-flash
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "30"
+      - key: CORS_ORIGINS
+        value: '["*"]'
+      - key: CORS_ALLOW_CREDENTIALS
+        value: "true"
+      - key: CORS_ALLOW_METHODS
+        value: '["*"]'
+      - key: CORS_ALLOW_HEADERS
+        value: '["*"]'
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: BACKEND_NEST_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

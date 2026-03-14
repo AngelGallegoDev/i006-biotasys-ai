@@ -1,7 +1,8 @@
 """Application settings and configuration."""
 
 
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 30
 
     # Backend Nest Configuration
-    backend_nest_url: str
+    backend_nest_url: str | None = None
 
     # Supabase Configuration
     supabase_url: str
@@ -30,7 +31,10 @@ class Settings(BaseSettings):
 
     # API Configuration
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("PORT", "API_PORT"),
+    )
 
     # CORS Configuration
     cors_origins: list[str] = ["*"]
@@ -41,9 +45,10 @@ class Settings(BaseSettings):
     # Logging Configuration
     log_level: str = "INFO"
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+    )
 
 
 # Global settings instance
