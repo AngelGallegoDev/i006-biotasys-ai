@@ -1,7 +1,7 @@
 """Application settings and configuration."""
 
 
-from pydantic import AliasChoices, Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,10 +31,8 @@ class Settings(BaseSettings):
 
     # API Configuration
     api_host: str = "0.0.0.0"
-    api_port: int = Field(
-        default=8000,
-        validation_alias=AliasChoices("PORT", "API_PORT"),
-    )
+    api_port: int = Field(default=8000, alias="API_PORT")
+    render_port: int | None = Field(default=None, alias="PORT")
 
     # CORS Configuration
     cors_origins: list[str] = ["*"]
@@ -45,9 +43,18 @@ class Settings(BaseSettings):
     # Logging Configuration
     log_level: str = "INFO"
 
+    @model_validator(mode="after")
+    def prefer_render_port(self) -> "Settings":
+        """Allow Render's PORT to override the local API_PORT setting."""
+        if self.render_port is not None:
+            self.api_port = self.render_port
+        return self
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
+        extra="ignore",
+        populate_by_name=True,
     )
 
 
